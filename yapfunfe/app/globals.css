@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 9%;
+    --card: 220 20% 13%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 20% 13%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142 72% 29%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142 72% 29%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  .badge {
+    @apply px-2 py-0.5 text-xs font-medium rounded-full;
+  }
+  .badge-casual {
+    @apply bg-emerald-500/20 text-emerald-500;
+  }
+  .badge-hardcore {
+    @apply bg-blue-500/20 text-blue-500;
+  }
+  .badge-curator {
+    @apply bg-purple-500/20 text-purple-500;
+  }
+  .badge-creative {
+    @apply bg-pink-500/20 text-pink-500;
+  }
+}
+
