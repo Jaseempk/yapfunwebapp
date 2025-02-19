@@ -13,7 +13,7 @@
 # debug
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
+yarn-error.log*2 
 .pnpm-debug.log*
 
 # env files

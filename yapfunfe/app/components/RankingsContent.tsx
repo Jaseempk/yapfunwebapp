@@ -92,7 +92,7 @@ export default function RankingsContent() {
         </div>
 
         <Tabs defaultValue="mindshare" className="w-full ">
-          <TabsList className="w-full sm:w-auto flex justify-between sm:justify-start overflow-x-auto rounded-s-md">
+          <TabsList className="w-full sm:w-auto flex justify-between sm:justify-start overflow-x-auto rounded-xl">
             <TabsTrigger
               value="mindshare"
               className="flex-1 sm:flex-none rounded-xl"
