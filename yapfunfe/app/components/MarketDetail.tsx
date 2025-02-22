@@ -156,12 +156,12 @@ export default function MarketDetail({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl w-full p-0 bg-background gap-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl w-full p-0 bg-background gap-0 max-h-[90vh] overflow-y-auto ">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+          className="p-4 sm:p-6 space-y-4 sm:space-y-6 rounded-xl"
         >
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

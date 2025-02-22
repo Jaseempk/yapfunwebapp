@@ -1,8 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Orbitron", sans-serif;
+  }
+
   :root {
     --background: 220 20% 9%;
     --card: 220 20% 13%;
@@ -36,8 +51,22 @@
 
 @layer components {
   .badge {
-    @apply px-2 py-0.5 text-xs font-medium rounded-full;
+    @apply px-2 py-0.5 text-xs font-medium rounded-full font-['Space_Grotesk'];
   }
+
+  .position-card {
+    @apply relative overflow-hidden;
+  }
+
+  .position-card::before {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-red-500/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .position-card:hover::before {
+    @apply opacity-100;
+  }
+
   .badge-casual {
     @apply bg-emerald-500/20 text-emerald-500;
   }
@@ -51,4 +80,3 @@
     @apply bg-pink-500/20 text-pink-500;
   }
 }
-
