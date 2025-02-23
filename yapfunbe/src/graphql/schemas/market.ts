@@ -40,15 +40,68 @@ export const marketTypeDefs = `#graphql
     LIQUIDATED
   }
 
+  type Order {
+    id: ID!
+    marketId: ID!
+    trader: String!
+    amount: Float!
+    price: Float!
+    type: OrderType!
+    status: OrderStatus!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  enum OrderType {
+    LIMIT
+    MARKET
+  }
+
+  enum OrderStatus {
+    OPEN
+    FILLED
+    CANCELLED
+  }
+
   type Query {
     markets: [Market!]!
     market(id: ID!): Market
     positions(trader: String!): [Position!]!
     marketPositions(marketId: ID!): [Position!]!
+    orders(trader: String!): [Order!]!
+    marketOrders(marketId: ID!): [Order!]!
+  }
+
+  input CreatePositionInput {
+    marketId: ID!
+    amount: Float!
+    leverage: Float!
+    type: PositionType!
+  }
+
+  input CreateOrderInput {
+    marketId: ID!
+    amount: Float!
+    price: Float!
+    type: OrderType!
+  }
+
+  input UpdateOrderInput {
+    orderId: ID!
+    price: Float!
+  }
+
+  type Mutation {
+    createPosition(input: CreatePositionInput!): Position!
+    closePosition(positionId: ID!): Position!
+    createOrder(input: CreateOrderInput!): Order!
+    updateOrder(input: UpdateOrderInput!): Order!
+    cancelOrder(orderId: ID!): Order!
   }
 
   type Subscription {
     marketPriceUpdated(marketId: ID!): PricePoint!
     positionUpdated(trader: String!): Position!
+    orderUpdated(trader: String!): Order!
   }
 `;

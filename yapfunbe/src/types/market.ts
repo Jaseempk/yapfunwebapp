@@ -1,3 +1,6 @@
+import { Redis } from "ioredis";
+import { PubSub } from "graphql-subscriptions";
+
 export enum PositionType {
   LONG = "LONG",
   SHORT = "SHORT",
@@ -7,6 +10,17 @@ export enum PositionStatus {
   OPEN = "OPEN",
   CLOSED = "CLOSED",
   LIQUIDATED = "LIQUIDATED",
+}
+
+export enum OrderType {
+  LIMIT = "LIMIT",
+  MARKET = "MARKET",
+}
+
+export enum OrderStatus {
+  OPEN = "OPEN",
+  FILLED = "FILLED",
+  CANCELLED = "CANCELLED",
 }
 
 export interface PricePoint {
@@ -39,9 +53,25 @@ export interface Position {
   closedAt?: string;
 }
 
+export interface Order {
+  id: string;
+  marketId: string;
+  trader: string;
+  amount: number;
+  price: number;
+  type: OrderType;
+  status: OrderStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MarketResolverContext {
   redis: Redis;
   pubsub: PubSub;
+  user?: {
+    id: string;
+    address: string;
+  };
 }
 
 // Resolver Types
@@ -66,6 +96,63 @@ export interface QueryResolvers {
     args: { marketId: string },
     context: MarketResolverContext
   ) => Promise<Position[]>;
+  orders: (
+    parent: unknown,
+    args: { trader: string },
+    context: MarketResolverContext
+  ) => Promise<Order[]>;
+  marketOrders: (
+    parent: unknown,
+    args: { marketId: string },
+    context: MarketResolverContext
+  ) => Promise<Order[]>;
+}
+
+export interface MutationResolvers {
+  createPosition: (
+    parent: unknown,
+    args: {
+      input: {
+        marketId: string;
+        amount: number;
+        leverage: number;
+        type: PositionType;
+      };
+    },
+    context: MarketResolverContext
+  ) => Promise<Position>;
+  closePosition: (
+    parent: unknown,
+    args: { positionId: string },
+    context: MarketResolverContext
+  ) => Promise<Position>;
+  createOrder: (
+    parent: unknown,
+    args: {
+      input: {
+        marketId: string;
+        amount: number;
+        price: number;
+        type: OrderType;
+      };
+    },
+    context: MarketResolverContext
+  ) => Promise<Order>;
+  updateOrder: (
+    parent: unknown,
+    args: {
+      input: {
+        orderId: string;
+        price: number;
+      };
+    },
+    context: MarketResolverContext
+  ) => Promise<Order>;
+  cancelOrder: (
+    parent: unknown,
+    args: { orderId: string },
+    context: MarketResolverContext
+  ) => Promise<Order>;
 }
 
 export interface SubscriptionResolvers {
@@ -83,18 +170,11 @@ export interface SubscriptionResolvers {
       context: MarketResolverContext
     ) => AsyncIterator<unknown>;
   };
-}
-
-// Import these at the top of the file but TypeScript will complain about circular dependencies
-// so we'll declare them here
-declare class Redis {
-  hgetall(key: string): Promise<Record<string, string>>;
-  hget(key: string, field: string): Promise<string | null>;
-  hset(key: string, field: string, value: string): Promise<number>;
-  hdel(key: string, field: string): Promise<number>;
-}
-
-declare class PubSub {
-  publish(triggerName: string, payload: any): Promise<void>;
-  asyncIterator<T>(triggers: string | string[]): AsyncIterator<T>;
+  orderUpdated: {
+    subscribe: (
+      parent: unknown,
+      args: { trader: string },
+      context: MarketResolverContext
+    ) => AsyncIterator<unknown>;
+  };
 }

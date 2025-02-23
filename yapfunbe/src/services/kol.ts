@@ -1,7 +1,4 @@
-interface KOLResponse {
-  data: any; // Replace with proper type after analyzing the API response
-  latency?: number;
-}
+import { KOLAPIResponse } from "../types/kol";
 
 export class KOLService {
   private readonly baseUrl = "https://hub.kaito.ai/api/v1/gateway/ai";
@@ -10,7 +7,7 @@ export class KOLService {
     duration: string = "7d",
     topicId: string = "",
     topN: number = 100
-  ): Promise<KOLResponse> {
+  ): Promise<KOLAPIResponse> {
     const startTime = Date.now();
 
     try {
@@ -67,7 +64,7 @@ export class KOLService {
     duration: string = "7d",
     topicId: string = "",
     topN: number = 100
-  ): Promise<KOLResponse> {
+  ): Promise<KOLAPIResponse> {
     // Check if we have cached data and it's still valid
     if (this.cache && Date.now() - this.cache.timestamp < this.CACHE_DURATION) {
       return {

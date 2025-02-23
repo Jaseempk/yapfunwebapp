@@ -1,124 +1,186 @@
-import { createPublicClient, http, parseAbi } from "viem";
-import { mainnet } from "viem/chains";
+import { ethers } from "ethers";
 import {
   Market,
   Position,
+  Order,
+  OrderType,
+  OrderStatus,
   PositionType,
   PositionStatus,
 } from "../types/market";
-
-// Initialize Viem client
-const client = createPublicClient({
-  chain: mainnet,
-  transport: http(),
-});
-
-// Example ABI for market interactions
-const marketAbi = parseAbi([
-  "event MarketCreated(uint256 indexed marketId, string name, string description)",
-  "event PositionOpened(uint256 indexed marketId, address indexed trader, uint256 amount, uint256 entryPrice, uint8 positionType)",
-  "event PositionClosed(uint256 indexed marketId, address indexed trader, uint256 pnl)",
-  "event PriceUpdated(uint256 indexed marketId, uint256 price, uint256 timestamp)",
-]);
+import { errorHandler } from "./error";
 
 export class ContractService {
-  private readonly client: typeof client;
+  private provider: ethers.JsonRpcProvider;
+  private readonly RPC_URL = process.env.RPC_URL || "http://localhost:8545";
 
   constructor() {
-    this.client = client;
+    this.provider = new ethers.JsonRpcProvider(this.RPC_URL);
   }
 
-  // Watch for market events
-  async watchMarketEvents(marketAddress: string) {
-    return this.client.watchContractEvent({
-      address: marketAddress as `0x${string}`,
-      abi: marketAbi,
-      eventName: "PriceUpdated",
-      onLogs: (logs: any[]) => {
-        // Handle price updates
-        console.log("Price updated:", logs);
-      },
-    });
-  }
-
-  // Watch for position events
-  async watchPositionEvents(marketAddress: string) {
-    return this.client.watchContractEvent({
-      address: marketAddress as `0x${string}`,
-      abi: marketAbi,
-      eventName: "PositionOpened",
-      onLogs: (logs: any[]) => {
-        // Handle new positions
-        console.log("Position opened:", logs);
-      },
-    });
-  }
-
-  // Get market data from contract
-  async getMarketData(marketAddress: string): Promise<Partial<Market>> {
+  async getMarketData(marketId: string): Promise<Market> {
     try {
-      // Example: Fetch market data from contract
-      // This would be replaced with actual contract calls
-      return {
-        id: marketAddress,
-        name: "Example Market",
-        totalVolume: 0,
-        totalPositions: 0,
-        currentPrice: 0,
-        priceHistory: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      // Implement contract call to get market data
+      throw new Error("Not implemented");
     } catch (error) {
-      console.error("Error fetching market data:", error);
-      throw error;
+      throw errorHandler.handle(error);
     }
   }
 
-  // Get position data from contract
-  async getPosition(
-    marketAddress: string,
-    trader: string
-  ): Promise<Partial<Position>> {
+  async getPosition(marketId: string, positionId: string): Promise<Position> {
     try {
-      // Example: Fetch position data from contract
-      // This would be replaced with actual contract calls
-      return {
-        id: `${marketAddress}-${trader}`,
-        marketId: marketAddress,
+      // Implement contract call to get position data
+      throw new Error("Not implemented");
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async calculatePnL(marketId: string, position: Position): Promise<number> {
+    try {
+      // Implement PnL calculation logic
+      throw new Error("Not implemented");
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async createPosition(
+    trader: string,
+    marketId: string,
+    amount: number,
+    leverage: number,
+    type: PositionType
+  ): Promise<Position> {
+    try {
+      // Implement contract call to create position
+      const position: Position = {
+        id: `${Date.now()}`,
+        marketId,
         trader,
-        amount: 0,
-        entryPrice: 0,
-        type: PositionType.LONG,
+        amount,
+        entryPrice: 0, // Get from contract
+        type,
         status: PositionStatus.OPEN,
         createdAt: new Date().toISOString(),
       };
+      return position;
     } catch (error) {
-      console.error("Error fetching position data:", error);
-      throw error;
+      throw errorHandler.handle(error);
     }
   }
 
-  // Calculate position PnL
-  async calculatePnL(
-    marketAddress: string,
-    position: Partial<Position>
-  ): Promise<number> {
+  async closePosition(trader: string, positionId: string): Promise<Position> {
     try {
-      // Get current price from contract
-      const marketData = await this.getMarketData(marketAddress);
-      const currentPrice = marketData.currentPrice || 0;
-      const entryPrice = position.entryPrice || 0;
-      const amount = position.amount || 0;
-      const isLong = position.type === PositionType.LONG;
-
-      return isLong
-        ? (currentPrice - entryPrice) * amount
-        : (entryPrice - currentPrice) * amount;
+      // Implement contract call to close position
+      const position = await this.getPosition("", positionId);
+      return {
+        ...position,
+        status: PositionStatus.CLOSED,
+        closedAt: new Date().toISOString(),
+      };
     } catch (error) {
-      console.error("Error calculating PnL:", error);
-      throw error;
+      throw errorHandler.handle(error);
     }
+  }
+
+  async getOrders(trader: string): Promise<Order[]> {
+    try {
+      // Implement contract call to get user's orders
+      return [];
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async getMarketOrders(marketId: string): Promise<Order[]> {
+    try {
+      // Implement contract call to get market's orders
+      return [];
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async createOrder(
+    trader: string,
+    marketId: string,
+    amount: number,
+    price: number,
+    type: OrderType
+  ): Promise<Order> {
+    try {
+      // Implement contract call to create order
+      const now = new Date().toISOString();
+      const order: Order = {
+        id: `${Date.now()}`,
+        marketId,
+        trader,
+        amount,
+        price,
+        type,
+        status: OrderStatus.OPEN,
+        createdAt: now,
+        updatedAt: now,
+      };
+      return order;
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async updateOrder(
+    trader: string,
+    orderId: string,
+    price: number
+  ): Promise<Order> {
+    try {
+      // Implement contract call to update order
+      throw new Error("Not implemented");
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async cancelOrder(trader: string, orderId: string): Promise<Order> {
+    try {
+      // Implement contract call to cancel order
+      throw new Error("Not implemented");
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  async watchMarketEvents(marketId: string): Promise<void> {
+    try {
+      // Implement contract event watching
+      throw new Error("Not implemented");
+    } catch (error) {
+      throw errorHandler.handle(error);
+    }
+  }
+
+  // Helper methods
+  private async validateOwnership(
+    trader: string,
+    itemId: string
+  ): Promise<boolean> {
+    // Implement ownership validation
+    return true;
+  }
+
+  private async validateMarketStatus(marketId: string): Promise<boolean> {
+    // Implement market status validation
+    return true;
+  }
+
+  private async validateOrderParameters(
+    marketId: string,
+    amount: number,
+    price: number
+  ): Promise<boolean> {
+    // Implement order parameter validation
+    return true;
   }
 }
 
