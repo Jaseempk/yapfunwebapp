@@ -22,7 +22,9 @@ export default function RootLayout({
           <Providers>
             <div className="min-h-screen bg-background">
               <Header />
-              {children}
+              <main className="container mx-auto px-2 sm:px-4 lg:px-6 max-w-7xl">
+                {children}
+              </main>
             </div>
           </Providers>
         </Web3Provider>

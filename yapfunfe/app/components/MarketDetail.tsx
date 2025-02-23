@@ -95,7 +95,7 @@ const OrderBookEntry = ({
         }`}
         style={{ width: `${(total / maxTotal) * 100}%` }}
       />
-      <div className="relative grid grid-cols-3 gap-4 py-1 text-sm">
+      <div className="relative grid grid-cols-3 gap-2 sm:gap-4 py-1 text-xs sm:text-sm">
         <span className={type === "buy" ? "text-green-500" : "text-red-500"}>
           ${price.toFixed(2)}
         </span>
@@ -156,12 +156,12 @@ export default function MarketDetail({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl w-full p-0 bg-background gap-0 max-h-[90vh] overflow-y-auto ">
+      <DialogContent className="max-w-5xl w-full p-0 bg-background gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="p-4 sm:p-6 space-y-4 sm:space-y-6 rounded-xl"
+          className="p-3 sm:p-6 space-y-4 sm:space-y-6 rounded-xl"
         >
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -169,10 +169,10 @@ export default function MarketDetail({
               <img
                 src={kol.avatar || "/placeholder.svg"}
                 alt=""
-                className="w-12 h-12 rounded-full ring-2 ring-border"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full ring-2 ring-border"
               />
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
                   {kol.name}
                   <a
                     href={`https://twitter.com/${kol.handle.slice(1)}`}
@@ -183,7 +183,7 @@ export default function MarketDetail({
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </h2>
-                <p className="text-muted-foreground">{kol.handle}</p>
+                <p className="text-sm text-muted-foreground">{kol.handle}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -203,10 +203,10 @@ export default function MarketDetail({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Chart Section */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              <Card className="p-4 rounded-xl">
+              <Card className="p-3 sm:p-4 rounded-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4">
                   <div className="space-y-1">
-                    <div className="text-2xl font-bold flex items-center gap-2">
+                    <div className="text-xl sm:text-2xl font-bold flex items-center gap-2">
                       {kol.mindshare}%
                       <span
                         className={
@@ -218,11 +218,11 @@ export default function MarketDetail({
                         {activeTab === "long" ? <ChevronUp /> : <ChevronDown />}
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs sm:text-sm text-muted-foreground">
                       Last updated: {new Date().toLocaleTimeString()}
                     </div>
                   </div>
-                  <div className="flex flex-wrap justify-start sm:justify-end gap-1">
+                  <div className="flex flex-wrap gap-1 -mx-1 sm:mx-0">
                     {timeRanges.map((range) => (
                       <Button
                         key={range.value}
@@ -231,14 +231,14 @@ export default function MarketDetail({
                         }
                         size="sm"
                         onClick={() => setTimeRange(range.value)}
-                        className="text-xs px-2.5"
+                        className="text-xs px-2 sm:px-2.5 flex-1 sm:flex-none"
                       >
                         {range.label}
                       </Button>
                     ))}
                   </div>
                 </div>
-                <div className="h-[300px]">
+                <div className="h-[250px] sm:h-[300px] -mx-3 sm:mx-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
                       <CartesianGrid
@@ -261,12 +261,14 @@ export default function MarketDetail({
                               });
                         }}
                         stroke="#666"
-                        fontSize={12}
+                        fontSize={10}
+                        tickMargin={8}
                       />
                       <YAxis
                         stroke="#666"
-                        fontSize={12}
+                        fontSize={10}
                         tickFormatter={(value) => `${value}%`}
+                        width={35}
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Line
@@ -283,43 +285,49 @@ export default function MarketDetail({
               </Card>
 
               {/* Market Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <Card className="p-4 rounded-xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <Card className="p-3 sm:p-4 rounded-xl">
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
                     <Clock className="w-4 h-4" />
-                    <span className="text-sm">24h Volume</span>
+                    <span className="text-xs sm:text-sm">24h Volume</span>
                   </div>
-                  <div className="text-lg font-semibold">{kol.volume}</div>
+                  <div className="text-base sm:text-lg font-semibold">
+                    {kol.volume}
+                  </div>
                 </Card>
-                <Card className="p-4 rounded-xl">
+                <Card className="p-3 sm:p-4 rounded-xl">
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
                     <Users className="w-4 h-4" />
-                    <span className="text-sm">Participants</span>
+                    <span className="text-xs sm:text-sm">Participants</span>
                   </div>
-                  <div className="text-lg font-semibold">
+                  <div className="text-base sm:text-lg font-semibold">
                     {kol.participants}
                   </div>
                 </Card>
-                <Card className="p-4 rounded-xl">
+                <Card className="p-3 sm:p-4 rounded-xl">
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
                     <MessageSquare className="w-4 h-4" />
-                    <span className="text-sm">Tweet Count</span>
+                    <span className="text-xs sm:text-sm">Tweet Count</span>
                   </div>
-                  <div className="text-lg font-semibold">{kol.tweetCount}</div>
+                  <div className="text-base sm:text-lg font-semibold">
+                    {kol.tweetCount}
+                  </div>
                 </Card>
-                <Card className="p-4 rounded-xl">
+                <Card className="p-3 sm:p-4 rounded-xl">
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
                     <BarChart2 className="w-4 h-4" />
-                    <span className="text-sm">Price Range</span>
+                    <span className="text-xs sm:text-sm">Price Range</span>
                   </div>
-                  <div className="text-lg font-semibold">30% - 70%</div>
+                  <div className="text-base sm:text-lg font-semibold">
+                    30% - 70%
+                  </div>
                 </Card>
               </div>
             </div>
 
             {/* Trading Interface */}
             <div className="space-y-4">
-              <Card className="p-4 rounded-xl">
+              <Card className="p-3 sm:p-4 rounded-xl">
                 <Tabs
                   value={activeTab}
                   onValueChange={(v: any) => setActiveTab(v)}
@@ -334,19 +342,19 @@ export default function MarketDetail({
                   </TabsList>
                   <div className="space-y-4">
                     <div>
-                      <div className="flex justify-between text-sm mb-2">
+                      <div className="flex justify-between text-xs sm:text-sm mb-2">
                         <span className="text-muted-foreground">Amount</span>
                         <span className="text-muted-foreground">
                           Balance: $1,000
                         </span>
                       </div>
-                      <div className="flex space-x-2 ">
+                      <div className="flex space-x-2">
                         <Input
                           type="number"
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
                           placeholder="0.00"
-                          className="flex-1 rounded-xl"
+                          className="flex-1 rounded-xl text-sm"
                         />
                         <Button
                           className="rounded-xl"
@@ -366,6 +374,7 @@ export default function MarketDetail({
                           onClick={() =>
                             setAmount((1000 * (percent / 100)).toString())
                           }
+                          className="text-xs"
                         >
                           {percent}%
                         </Button>
@@ -376,7 +385,7 @@ export default function MarketDetail({
                         activeTab === "long"
                           ? "bg-green-500 hover:bg-green-600"
                           : "bg-red-500 hover:bg-red-600"
-                      } rounded-xl`}
+                      } rounded-xl text-sm`}
                       disabled={isLoading}
                       onClick={handlePlaceOrder}
                     >
@@ -393,11 +402,11 @@ export default function MarketDetail({
                 </Tabs>
               </Card>
 
-              <Card className="p-4 rounded-xl">
-                <div className="flex items-center justify-between mb-4 ">
+              <Card className="p-3 sm:p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
-                    <h3 className="font-semibold">Order Book</h3>
+                    <h3 className="font-semibold text-sm">Order Book</h3>
                   </div>
                   <Button variant="ghost" size="sm" className="text-xs">
                     <RefreshCcw className="w-3 h-3 mr-1" />
@@ -405,7 +414,7 @@ export default function MarketDetail({
                   </Button>
                 </div>
                 <div className="space-y-1">
-                  <div className="grid grid-cols-3 gap-4 text-xs text-muted-foreground mb-2">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs text-muted-foreground mb-2">
                     <span>Price</span>
                     <span className="text-right">Size</span>
                     <span className="text-right">Total</span>
@@ -420,7 +429,7 @@ export default function MarketDetail({
                         type="sell"
                       />
                     ))}
-                    <div className="text-center py-2 font-medium border-y border-border my-2">
+                    <div className="text-center py-2 font-medium border-y border-border my-2 text-sm">
                       {kol.mindshare.toFixed(2)}%
                     </div>
                     {Array.from({ length: 5 }).map((_, i) => (

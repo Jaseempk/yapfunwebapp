@@ -49,43 +49,47 @@ export default function KOLCard({
         className="h-full"
       >
         <Card
-          className="overflow-hidden transition-all cursor-pointer h-full backdrop-blur-sm bg-background/80 hover:bg-background/90 hover:border-green-500/50 rounded-xl"
+          className="overflow-hidden transition-all cursor-pointer h-full backdrop-blur-sm bg-background/50 hover:bg-background/70 hover:border-green-500/50 rounded-xl hover:scale-[1.02]"
           onClick={() => setIsDetailOpen(true)}
         >
-          <div className="p-4 flex flex-col h-full">
-            <div className="flex items-start space-x-3 sm:space-x-4">
+          <div className="p-3 sm:p-4 flex flex-col h-full">
+            <div className="flex items-start space-x-2 sm:space-x-4">
               <div className="relative flex-shrink-0">
                 <img
                   src={avatar || "/placeholder.svg"}
                   alt=""
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full"
+                  className="w-9 h-9 sm:w-12 sm:h-12 rounded-full ring-2 ring-green-500/20"
                   loading="lazy"
                 />
                 {rank <= 3 && (
-                  <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
-                    <Crown className="w-3 h-3 text-black" />
+                  <div className="absolute -top-1 -right-1 bg-yellow-500/90 backdrop-blur-sm rounded-full p-0.5 sm:p-1">
+                    <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <div className="truncate">
-                    <h3 className="font-medium truncate">{name}</h3>
-                    <p className="text-sm text-gray-400 truncate">{handle}</p>
+                    <h3 className="text-sm sm:text-base font-medium truncate">
+                      {name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-400 truncate">
+                      {handle}
+                    </p>
                   </div>
                   <div className="text-right ml-2 flex-shrink-0">
                     <div className="flex items-center space-x-1">
-                      <span className="text-base sm:text-lg font-semibold whitespace-nowrap">
+                      <span className="text-sm sm:text-lg font-semibold whitespace-nowrap">
                         {mindshare.toFixed(2)}%
                       </span>
                       {performance === "up" && (
-                        <TrendingUp className="w-4 h-4 text-green-500" />
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500" />
                       )}
                       {performance === "down" && (
-                        <TrendingDown className="w-4 h-4 text-red-500" />
+                        <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
                       )}
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-400">
+                    <p className="text-[10px] sm:text-sm text-gray-400">
                       Mindshare
                     </p>
                   </div>
@@ -93,31 +97,39 @@ export default function KOLCard({
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div className="flex items-center space-x-1">
-                <BarChart2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                <span className="text-gray-400 truncate">{volume}</span>
+            <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-4 text-[10px] sm:text-sm">
+              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+                <BarChart2 className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                <span className="text-muted-foreground truncate pl-1">
+                  {volume}
+                </span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                <span className="text-gray-400 truncate">{participants}</span>
+              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+                <Users className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                <span className="text-muted-foreground truncate pl-1">
+                  {participants}
+                </span>
               </div>
-              <div className="text-right text-gray-400 truncate">
-                {tweetCount}
-                <span className="ml-1">tweets</span>
+              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+                <span className="text-muted-foreground truncate">
+                  {tweetCount}
+                </span>
+                <span className="text-muted-foreground truncate pl-1">
+                  tweets
+                </span>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 ">
+            <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-1.5 sm:gap-3">
               <Button
                 variant="secondary"
-                className="bg-green-500/10 text-green-500 hover:bg-green-500/20 h-8 sm:h-9 text-xs sm:text-sm rounded-xl"
+                className="bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-400 h-7 sm:h-9 text-[10px] sm:text-sm rounded-xl font-medium"
               >
                 Long
               </Button>
               <Button
                 variant="secondary"
-                className="bg-red-500/10 text-red-500 hover:bg-red-500/20 h-8 sm:h-9 text-xs sm:text-sm rounded-xl"
+                className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 h-7 sm:h-9 text-[10px] sm:text-sm rounded-xl font-medium"
               >
                 Short
               </Button>

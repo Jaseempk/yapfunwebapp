@@ -3,7 +3,6 @@
 import { useState } from "react";
 import TimeFilter from "./TimeFilter";
 import KOLCard from "./KOLCard";
-import TrendingCarousel from "./TrendingCarousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const mockKOLs = [
@@ -80,19 +79,15 @@ export default function RankingsContent() {
   const [timeRange, setTimeRange] = useState("30d");
 
   return (
-    <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-      <section className="mb-6 sm:mb-8">
-        <TrendingCarousel />
-      </section>
-
-      <div className="flex flex-col space-y-6 sm:space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0">
+    <div>
+      <div className="flex flex-col space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
           <h2 className="text-xl sm:text-2xl font-bold">Top Influencers</h2>
           <TimeFilter active={timeRange} onChange={setTimeRange} />
         </div>
 
         <Tabs defaultValue="mindshare" className="w-full ">
-          <TabsList className="w-full sm:w-auto flex justify-between sm:justify-start overflow-x-auto rounded-xl">
+          <TabsList className="w-full sm:w-auto flex justify-between sm:justify-start overflow-x-auto rounded-xl bg-background/50 backdrop-blur-sm">
             <TabsTrigger
               value="mindshare"
               className="flex-1 sm:flex-none rounded-xl"
@@ -113,27 +108,36 @@ export default function RankingsContent() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="mindshare" className="mt-4 sm:mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <TabsContent
+            value="mindshare"
+            className="mt-3 focus-visible:outline-none focus-visible:ring-0"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {mockKOLs.map((kol) => (
                 <KOLCard key={kol.rank} {...kol} isTop={kol.rank <= 3} />
               ))}
             </div>
           </TabsContent>
 
-          <TabsContent value="engagement">
-            <div className="text-center py-8 sm:py-12 text-gray-500">
+          <TabsContent
+            value="engagement"
+            className="focus-visible:outline-none focus-visible:ring-0"
+          >
+            <div className="text-center py-4 text-muted-foreground">
               Engagement metrics coming soon
             </div>
           </TabsContent>
 
-          <TabsContent value="growth">
-            <div className="text-center py-8 sm:py-12 text-gray-500">
+          <TabsContent
+            value="growth"
+            className="focus-visible:outline-none focus-visible:ring-0"
+          >
+            <div className="text-center py-4 text-muted-foreground">
               Growth metrics coming soon
             </div>
           </TabsContent>
         </Tabs>
       </div>
-    </main>
+    </div>
   );
 }

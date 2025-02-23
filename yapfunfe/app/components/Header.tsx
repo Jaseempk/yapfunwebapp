@@ -9,8 +9,6 @@ import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ConnectKitButton } from "connectkit";
 import { useAccount, useBalance } from "wagmi";
-import { getAccount } from "@wagmi/core";
-import { config } from "../providers/Web3Providers";
 
 const navigation = [
   { name: "Rankings", href: "/" },
@@ -32,23 +30,21 @@ export default function Header() {
     address,
   });
 
-  const account = getAccount(config);
-
   const [inHouseBalance, setInHouseBalance] = useState("0.00");
 
   // Fetch in-house balance when wallet is connected
   useEffect(() => {
-    if (account.address) {
+    if (address) {
       // TODO: Replace with actual API call to fetch in-house balance
       setInHouseBalance("100.00");
     }
-  }, [account.address]);
+  }, [address]);
 
   return (
     <header className="border-b border-gray-800/50 sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-2 sm:px-4">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center space-x-4 md:space-x-8">
+          <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-8">
             <Link href="/" className="flex items-center space-x-2">
               <div className="text-xl font-bold font-mono tracking-tight bg-gradient-to-r  bg-clip-text ">
                 yapfun
@@ -74,8 +70,8 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
-            {account.address && (
-              <div className="text-sm font-medium">
+            {address && (
+              <div className="hidden sm:block text-sm font-medium">
                 Balance: ${inHouseBalance}
               </div>
             )}
@@ -96,7 +92,7 @@ export default function Header() {
               </Button>
             )}
             <ConnectKitButton />
-            {account.address && (
+            {address && (
               <Link href="/profile">
                 <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
@@ -113,7 +109,7 @@ export default function Header() {
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="w-[75vw] sm:w-[350px] bg-background border-l border-gray-800"
+                className="w-[85vw] sm:w-[350px] bg-background border-l border-gray-800 pt-8"
               >
                 <nav className="flex flex-col space-y-4 mt-4">
                   {navigation.map((item) => (
@@ -126,7 +122,7 @@ export default function Header() {
                       </Button>
                     </Link>
                   ))}
-                  {account.address && (
+                  {address && (
                     <Link href="/profile">
                       <Button
                         variant="ghost"
