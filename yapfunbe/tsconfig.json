@@ -2,7 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["es2020", "esnext.asynciterable"],
+    "lib": ["es2020", "esnext.asynciterable", "dom"],
+    "types": ["node", "express", "jest"],
     "skipLibCheck": true,
     "sourceMap": true,
     "outDir": "./dist",

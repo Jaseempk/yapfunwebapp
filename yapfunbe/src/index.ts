@@ -12,32 +12,104 @@ import dotenv from "dotenv";
 
 import { marketTypeDefs } from "./graphql/schemas/market";
 import { marketResolvers } from "./graphql/resolvers/market";
+import { kolTypeDefs } from "./graphql/schemas/kol";
+import { kolResolvers } from "./graphql/resolvers/kol";
+import { authService } from "./services/auth";
+import { rateLimiter } from "./services/rateLimit";
+import { cacheUtils, redis } from "./config/cache";
+import { errorHandler } from "./services/error";
+import { analyticsService } from "./services/analytics";
 
 // Load environment variables
 dotenv.config();
 
 // Define context type
-type Context = {
+interface Context {
   pubsub: PubSub;
-};
+  token?: string;
+  user?: any;
+  ip?: string;
+  redis: typeof redis;
+  cache: typeof cacheUtils;
+}
 
-// Initialize PubSub
+// Initialize services
 const pubsub = new PubSub();
 
 // Create context
-const createContext = async (): Promise<Context> => ({
-  pubsub,
-});
+const createContext = async ({
+  req,
+}: {
+  req: express.Request;
+}): Promise<Context> => {
+  const token = req.headers.authorization?.split(" ")[1];
+  const ip = req.ip;
+
+  let context: Context = {
+    pubsub,
+    token,
+    ip,
+    redis,
+    cache: cacheUtils,
+  };
+
+  if (token) {
+    try {
+      const user = authService.verifyToken(token);
+      context.user = user;
+    } catch (error) {
+      // Token verification failed, but we'll continue without user context
+      console.error("Token verification failed:", error);
+    }
+  }
+
+  return context;
+};
 
 // Create schema
 const schema = makeExecutableSchema({
-  typeDefs: [marketTypeDefs],
-  resolvers: [marketResolvers],
+  typeDefs: [marketTypeDefs, kolTypeDefs],
+  resolvers: [marketResolvers, kolResolvers],
 });
+
+// Custom plugin for analytics and error tracking
+const analyticsPlugin = {
+  async requestDidStart() {
+    const requestStart = Date.now();
+    return {
+      async willSendResponse(requestContext: any) {
+        const latency = Date.now() - requestStart;
+        analyticsService.trackGraphQLMetrics({
+          operation: requestContext.operationName || "unknown",
+          latency,
+          success: !requestContext.errors,
+        });
+      },
+      async didEncounterErrors(ctx: any) {
+        ctx.errors.forEach((error: any) => {
+          errorHandler.handleGraphQLError(error);
+        });
+      },
+    };
+  },
+};
 
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
+
+  // Health check endpoint
+  app.get("/health", async (req, res) => {
+    try {
+      const redisHealth = await cacheUtils.healthCheck();
+      res.json({
+        status: "healthy",
+        redis: redisHealth ? "connected" : "disconnected",
+      });
+    } catch (error) {
+      res.status(500).json({ status: "unhealthy", error: error.message });
+    }
+  });
 
   // WebSocket server
   const wsServer = new WebSocketServer({
@@ -48,7 +120,11 @@ async function startServer() {
   const serverCleanup = useServer(
     {
       schema,
-      context: createContext,
+      context: async (ctx: any) => {
+        // WebSocket context
+        const token = ctx.connectionParams?.authorization?.split(" ")[1];
+        return { pubsub, token };
+      },
     },
     wsServer
   );
@@ -67,7 +143,12 @@ async function startServer() {
           };
         },
       },
+      analyticsPlugin,
     ],
+    formatError: (error) => {
+      errorHandler.handleGraphQLError(error);
+      return error;
+    },
   });
 
   await server.start();
@@ -77,6 +158,20 @@ async function startServer() {
     "/graphql",
     cors<cors.CorsRequest>(),
     express.json(),
+    // Rate limiting middleware
+    async (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      try {
+        const identifier = req.headers.authorization?.split(" ")[1] || req.ip;
+        await rateLimiter.checkLimit(identifier);
+        next();
+      } catch (error) {
+        res.status(429).json({ error: error.message });
+      }
+    },
     expressMiddleware(server, {
       context: createContext,
     })

@@ -88,4 +88,11 @@ export const errorHandler = {
   rateLimited(message = "Too many requests"): AppError {
     return new AppError(ErrorCode.RATE_LIMITED, message, 429);
   },
+
+  handleGraphQLError(error: any): GraphQLError {
+    if (error instanceof GraphQLError) {
+      return error;
+    }
+    return this.handle(error);
+  },
 };

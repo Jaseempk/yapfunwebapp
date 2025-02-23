@@ -1,7 +1,20 @@
 import { KOLAPIResponse } from "../types/kol";
+import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
+import { errorHandler } from "./error";
 
 export class KOLService {
   private readonly baseUrl = "https://hub.kaito.ai/api/v1/gateway/ai";
+
+  private generateCacheKey(
+    duration: string,
+    topicId: string,
+    topN: number
+  ): string {
+    return cacheUtils.generateKey(
+      CACHE_PREFIX.KOL,
+      `top_kols:${duration}:${topicId}:${topN}`
+    );
+  }
 
   async getTopKOLs(
     duration: string = "7d",
@@ -33,13 +46,14 @@ export class KOLService {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(
+          `HTTP error! Status: ${response.status}, Response: ${errorText}`
+        );
       }
 
       const data = await response.json();
       const latency = (Date.now() - startTime) / 1000; // Convert ms to seconds
-
-      console.log(`KOL API Response Latency: ${latency.toFixed(3)} seconds`);
 
       return {
         data,
@@ -47,43 +61,59 @@ export class KOLService {
       };
     } catch (error) {
       console.error("Error fetching KOL data:", error);
-      throw error;
+      throw errorHandler.handle(error);
     }
   }
-
-  // Cache the response in memory for a short duration to avoid hitting rate limits
-  private cache: {
-    data: any;
-    timestamp: number;
-    latency: number;
-  } | null = null;
-
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   async getTopKOLsWithCache(
     duration: string = "7d",
     topicId: string = "",
     topN: number = 100
   ): Promise<KOLAPIResponse> {
-    // Check if we have cached data and it's still valid
-    if (this.cache && Date.now() - this.cache.timestamp < this.CACHE_DURATION) {
-      return {
-        data: this.cache.data,
-        latency: this.cache.latency,
-      };
+    const cacheKey = this.generateCacheKey(duration, topicId, topN);
+
+    try {
+      return await cacheUtils.getOrSet<KOLAPIResponse>(
+        cacheKey,
+        () => this.getTopKOLs(duration, topicId, topN),
+        CACHE_TTL.KOL
+      );
+    } catch (error) {
+      console.error("Error in getTopKOLsWithCache:", error);
+      throw errorHandler.handle(error);
     }
+  }
 
-    // Fetch fresh data
-    const response = await this.getTopKOLs(duration, topicId, topN);
+  // Clear cache for specific parameters
+  async clearCache(
+    duration?: string,
+    topicId?: string,
+    topN?: number
+  ): Promise<void> {
+    try {
+      if (duration && topicId && topN) {
+        // Clear specific cache entry
+        const cacheKey = this.generateCacheKey(duration, topicId, topN);
+        await cacheUtils.del(cacheKey);
+      } else {
+        // Clear all KOL-related cache
+        await cacheUtils.clearPrefix(CACHE_PREFIX.KOL);
+      }
+    } catch (error) {
+      console.error("Error clearing KOL cache:", error);
+      throw errorHandler.handle(error);
+    }
+  }
 
-    // Update cache
-    this.cache = {
-      data: response.data,
-      timestamp: Date.now(),
-      latency: response.latency || 0,
-    };
-
-    return response;
+  // Health check
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await this.getTopKOLs("1d", "", 1);
+      return response.data && Array.isArray(response.data.data);
+    } catch (error) {
+      console.error("KOL service health check failed:", error);
+      return false;
+    }
   }
 }
 

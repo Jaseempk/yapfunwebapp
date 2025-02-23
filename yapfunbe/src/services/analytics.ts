@@ -229,6 +229,69 @@ export class AnalyticsService {
       await redis.del(...keys);
     }
   }
+
+  // GraphQL Performance Metrics
+  async trackGraphQLMetrics({
+    operation,
+    latency,
+    success,
+  }: {
+    operation: string;
+    latency: number;
+    success: boolean;
+  }): Promise<void> {
+    const now = new Date();
+    const minute = Math.floor(now.getTime() / 60000);
+    const hourKey = `metrics:graphql:hourly:${Math.floor(minute / 60)}`;
+    const minuteKey = `metrics:graphql:minute:${minute}`;
+
+    const pipeline = redis.pipeline();
+
+    // Update operation-specific metrics
+    const opKey = `metrics:graphql:operation:${operation}`;
+    pipeline.hincrby(opKey, "count", 1);
+    pipeline.hincrby(opKey, "latencyTotal", latency);
+    pipeline.hincrby(opKey, "successCount", success ? 1 : 0);
+    pipeline.hincrby(opKey, "errorCount", success ? 0 : 1);
+    pipeline.expire(opKey, 86400); // 24 hours
+
+    // Update minute-level metrics
+    pipeline.hincrby(minuteKey, "count", 1);
+    pipeline.hincrby(minuteKey, "latencyTotal", latency);
+    pipeline.hincrby(minuteKey, "successCount", success ? 1 : 0);
+    pipeline.hincrby(minuteKey, "errorCount", success ? 0 : 1);
+    pipeline.expire(minuteKey, 3600); // 1 hour
+
+    // Update hour-level metrics
+    pipeline.hincrby(hourKey, "count", 1);
+    pipeline.hincrby(hourKey, "latencyTotal", latency);
+    pipeline.hincrby(hourKey, "successCount", success ? 1 : 0);
+    pipeline.hincrby(hourKey, "errorCount", success ? 0 : 1);
+    pipeline.expire(hourKey, 86400); // 24 hours
+
+    await pipeline.exec();
+  }
+
+  async getGraphQLMetrics(operation?: string): Promise<{
+    requestCount: number;
+    avgLatency: number;
+    errorRate: number;
+  }> {
+    const key = operation
+      ? `metrics:graphql:operation:${operation}`
+      : `metrics:graphql:hourly:${Math.floor(Date.now() / 3600000)}`;
+
+    const data = await redis.hgetall(key);
+    const count = parseInt(data.count || "0", 10);
+    const latencyTotal = parseInt(data.latencyTotal || "0", 10);
+    const errorCount = parseInt(data.errorCount || "0", 10);
+
+    return {
+      requestCount: count,
+      avgLatency: count > 0 ? latencyTotal / count : 0,
+      errorRate: count > 0 ? errorCount / count : 0,
+    };
+  }
 }
 
 export const analyticsService = new AnalyticsService();
