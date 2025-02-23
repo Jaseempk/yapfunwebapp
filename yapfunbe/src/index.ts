@@ -1,11 +1,10 @@
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import { ApolloServerPlugin } from "@apollo/server";
 import express from "express";
 import http from "http";
 import cors from "cors";
-import { WebSocketServer } from "ws";
-import { useServer } from "graphql-ws/lib/use/ws";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { PubSub } from "graphql-subscriptions";
 import dotenv from "dotenv";
@@ -19,6 +18,7 @@ import { rateLimiter } from "./services/rateLimit";
 import { cacheUtils, redis } from "./config/cache";
 import { errorHandler } from "./services/error";
 import { analyticsService } from "./services/analytics";
+import { initializeWebSocket, getWebSocketService } from "./services/websocket";
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +27,12 @@ dotenv.config();
 interface Context {
   pubsub: PubSub;
   token?: string;
-  user?: any;
+  user?: {
+    userId: string;
+    address: string;
+    nonce?: string;
+    [key: string]: any;
+  };
   ip?: string;
   redis: typeof redis;
   cache: typeof cacheUtils;
@@ -55,7 +60,7 @@ const createContext = async ({
 
   if (token) {
     try {
-      const user = authService.verifyToken(token);
+      const user = await authService.verifyToken(token);
       context.user = user;
     } catch (error) {
       // Token verification failed, but we'll continue without user context
@@ -73,20 +78,20 @@ const schema = makeExecutableSchema({
 });
 
 // Custom plugin for analytics and error tracking
-const analyticsPlugin = {
+const analyticsPlugin: ApolloServerPlugin = {
   async requestDidStart() {
     const requestStart = Date.now();
     return {
       async willSendResponse(requestContext: any) {
         const latency = Date.now() - requestStart;
-        analyticsService.trackGraphQLMetrics({
+        await analyticsService.trackGraphQLMetrics({
           operation: requestContext.operationName || "unknown",
           latency,
           success: !requestContext.errors,
         });
       },
       async didEncounterErrors(ctx: any) {
-        ctx.errors.forEach((error: any) => {
+        ctx.errors.forEach((error: Error) => {
           errorHandler.handleGraphQLError(error);
         });
       },
@@ -98,36 +103,33 @@ async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
 
+  // Initialize WebSocket service
+  const wsService = initializeWebSocket(httpServer);
+
   // Health check endpoint
   app.get("/health", async (req, res) => {
     try {
-      const redisHealth = await cacheUtils.healthCheck();
+      const [redisHealth, wsHealth] = await Promise.all([
+        cacheUtils.healthCheck(),
+        wsService.getStatus(),
+      ]);
+
       res.json({
         status: "healthy",
         redis: redisHealth ? "connected" : "disconnected",
+        websocket: {
+          status: "connected",
+          ...wsHealth,
+        },
       });
     } catch (error) {
-      res.status(500).json({ status: "unhealthy", error: error.message });
+      console.error("Health check failed:", error);
+      res.status(500).json({
+        status: "unhealthy",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
-
-  // WebSocket server
-  const wsServer = new WebSocketServer({
-    server: httpServer,
-    path: "/graphql",
-  });
-
-  const serverCleanup = useServer(
-    {
-      schema,
-      context: async (ctx: any) => {
-        // WebSocket context
-        const token = ctx.connectionParams?.authorization?.split(" ")[1];
-        return { pubsub, token };
-      },
-    },
-    wsServer
-  );
 
   // Apollo Server setup
   const server = new ApolloServer({
@@ -138,7 +140,7 @@ async function startServer() {
         async serverWillStart() {
           return {
             async drainServer() {
-              await serverCleanup.dispose();
+              wsService.cleanup();
             },
           };
         },
@@ -166,10 +168,15 @@ async function startServer() {
     ) => {
       try {
         const identifier = req.headers.authorization?.split(" ")[1] || req.ip;
-        await rateLimiter.checkLimit(identifier);
+        if (!identifier) {
+          throw new Error("No identifier for rate limiting");
+        }
+        await rateLimiter.checkLimit(identifier, "graphql");
         next();
       } catch (error) {
-        res.status(429).json({ error: error.message });
+        res.status(429).json({
+          error: error instanceof Error ? error.message : "Too many requests",
+        });
       }
     },
     expressMiddleware(server, {
@@ -185,19 +192,30 @@ async function startServer() {
   });
 
   // Error handling
-  process.on("unhandledRejection", (error) => {
+  process.on("unhandledRejection", (error: Error) => {
     console.error("Unhandled promise rejection:", error);
+    errorHandler.handle(error);
   });
 
   // Graceful shutdown
-  process.on("SIGTERM", async () => {
-    console.log("SIGTERM received. Shutting down gracefully...");
-    await server.stop();
-    process.exit(0);
-  });
+  const shutdown = async (signal: string) => {
+    console.log(`${signal} received. Shutting down gracefully...`);
+    try {
+      await Promise.all([server.stop(), wsService.cleanup(), redis.quit()]);
+      console.log("Cleanup completed. Exiting...");
+      process.exit(0);
+    } catch (error) {
+      console.error("Error during shutdown:", error);
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 startServer().catch((error) => {
   console.error("Failed to start server:", error);
+  errorHandler.handle(error);
   process.exit(1);
 });

@@ -1,6 +1,6 @@
 export { marketService } from "./market";
 export { marketEventHandler } from "./events";
-export { marketConfigService } from "./config";
+export { marketConfig } from "./config";
 
 // Types
 export type { Market, Position, Order } from "../../types/market";

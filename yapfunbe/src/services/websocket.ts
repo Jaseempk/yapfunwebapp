@@ -1,4 +1,4 @@
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer, RawData } from "ws";
 import { Server } from "http";
 import { verify } from "jsonwebtoken";
 import { redis } from "../config/cache";
@@ -11,7 +11,12 @@ interface WebSocketMessage {
 }
 
 interface SubscriptionMap {
-  [key: string]: Set<WebSocket>;
+  [key: string]: Set<CustomWebSocket>;
+}
+
+interface CustomWebSocket extends WebSocket {
+  isAlive?: boolean;
+  userId?: string;
 }
 
 export class WebSocketService {
@@ -27,34 +32,32 @@ export class WebSocketService {
   }
 
   private setupWebSocketServer() {
-    this.wss.on(
-      "connection",
-      async (ws: WebSocket & { isAlive?: boolean; userId?: string }) => {
+    this.wss.on("connection", async (ws: CustomWebSocket) => {
+      ws.isAlive = true;
+
+      ws.on("pong", () => {
         ws.isAlive = true;
+      });
 
-        ws.on("pong", () => {
-          ws.isAlive = true;
-        });
+      ws.on("message", async (rawData: RawData) => {
+        try {
+          const data = rawData.toString();
+          const message: WebSocketMessage = JSON.parse(data);
+          await this.handleMessage(ws, message);
+        } catch (error) {
+          this.sendError(ws, "Invalid message format");
+        }
+      });
 
-        ws.on("message", async (data: string) => {
-          try {
-            const message: WebSocketMessage = JSON.parse(data);
-            await this.handleMessage(ws, message);
-          } catch (error) {
-            this.sendError(ws, "Invalid message format");
-          }
-        });
-
-        ws.on("close", () => {
-          this.handleDisconnect(ws);
-        });
-      }
-    );
+      ws.on("close", () => {
+        this.handleDisconnect(ws);
+      });
+    });
   }
 
   private startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
-      this.wss.clients.forEach((ws: WebSocket & { isAlive?: boolean }) => {
+      this.wss.clients.forEach((ws: CustomWebSocket) => {
         if (ws.isAlive === false) {
           return ws.terminate();
         }
@@ -64,10 +67,7 @@ export class WebSocketService {
     }, 30000);
   }
 
-  private async handleMessage(
-    ws: WebSocket & { userId?: string },
-    message: WebSocketMessage
-  ) {
+  private async handleMessage(ws: CustomWebSocket, message: WebSocketMessage) {
     try {
       switch (message.type) {
         case "authenticate":
@@ -93,10 +93,7 @@ export class WebSocketService {
     }
   }
 
-  private async handleAuthentication(
-    ws: WebSocket & { userId?: string },
-    token: string
-  ) {
+  private async handleAuthentication(ws: CustomWebSocket, token: string) {
     try {
       const decoded = verify(token, this.JWT_SECRET) as { userId: string };
       ws.userId = decoded.userId;
@@ -107,7 +104,7 @@ export class WebSocketService {
   }
 
   private async handleSubscription(
-    ws: WebSocket & { userId?: string },
+    ws: CustomWebSocket,
     payload: { channel: string }
   ) {
     const { channel } = payload;
@@ -131,7 +128,7 @@ export class WebSocketService {
   }
 
   private async handleUnsubscription(
-    ws: WebSocket & { userId?: string },
+    ws: CustomWebSocket,
     payload: { channel: string }
   ) {
     const { channel } = payload;
@@ -151,7 +148,7 @@ export class WebSocketService {
     this.sendSuccess(ws, "unsubscribed", { channel });
   }
 
-  private handleDisconnect(ws: WebSocket) {
+  private handleDisconnect(ws: CustomWebSocket) {
     // Remove from all subscriptions
     Object.values(this.subscriptions).forEach((subscribers) => {
       subscribers.delete(ws);
@@ -177,7 +174,7 @@ export class WebSocketService {
       timestamp: new Date().toISOString(),
     });
 
-    subscribers.forEach((client: WebSocket & { isAlive?: boolean }) => {
+    subscribers.forEach((client: CustomWebSocket) => {
       if (client.isAlive) {
         client.send(message);
       }
@@ -185,7 +182,7 @@ export class WebSocketService {
   }
 
   public async broadcastToUser(userId: string, type: string, data: any) {
-    this.wss.clients.forEach((client: WebSocket & { userId?: string }) => {
+    this.wss.clients.forEach((client: CustomWebSocket) => {
       if (client.userId === userId) {
         client.send(
           JSON.stringify({
@@ -198,7 +195,7 @@ export class WebSocketService {
     });
   }
 
-  private sendSuccess(ws: WebSocket, type: string, data: any) {
+  private sendSuccess(ws: CustomWebSocket, type: string, data: any) {
     ws.send(
       JSON.stringify({
         type,
@@ -209,7 +206,7 @@ export class WebSocketService {
     );
   }
 
-  private sendError(ws: WebSocket, message: string) {
+  private sendError(ws: CustomWebSocket, message: string) {
     ws.send(
       JSON.stringify({
         type: "error",

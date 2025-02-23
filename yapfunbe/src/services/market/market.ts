@@ -7,6 +7,12 @@ import { errorHandler } from "../error";
 import { analyticsService } from "../analytics";
 import { notificationService } from "../notification";
 import { validationService } from "../validation";
+import { getWebSocketService } from "../websocket";
+
+interface PriceAlert {
+  targetPrice: number;
+  condition: "above" | "below";
+}
 
 export class MarketService {
   // Cache keys
@@ -24,6 +30,10 @@ export class MarketService {
 
   private getMarketOrdersKey(marketId: string): string {
     return `${CACHE_PREFIX.MARKET}${marketId}:orders`;
+  }
+
+  private getMarketAlertsKey(marketId: string): string {
+    return `${CACHE_PREFIX.MARKET}${marketId}:alerts`;
   }
 
   // Market operations
@@ -63,9 +73,13 @@ export class MarketService {
       validationService.validatePrice(price);
 
       const pricePoint: PricePoint = { price, timestamp };
+      const wsService = getWebSocketService();
+
+      // Use pipeline for atomic updates
+      const pipeline = redis.pipeline();
 
       // Update latest price
-      await redis.setex(
+      pipeline.setex(
         this.getMarketPriceKey(marketId),
         CACHE_TTL.MARKET,
         JSON.stringify(pricePoint)
@@ -76,12 +90,18 @@ export class MarketService {
       if (market) {
         market.currentPrice = price;
         market.priceHistory.push(pricePoint);
-        await redis.setex(
+        pipeline.setex(
           this.getMarketKey(marketId),
           CACHE_TTL.MARKET,
           JSON.stringify(market)
         );
       }
+
+      // Execute pipeline
+      await pipeline.exec();
+
+      // Broadcast price update
+      await wsService.broadcast(`market:${marketId}:price`, pricePoint);
 
       // Update analytics
       await analyticsService.trackMarketTrade(marketId, 0, price, "");
@@ -124,6 +144,9 @@ export class MarketService {
 
   async updatePosition(position: Position): Promise<void> {
     try {
+      const wsService = getWebSocketService();
+      const pipeline = redis.pipeline();
+
       // Update position cache
       const positions = await this.getMarketPositions(position.marketId);
       const index = positions.findIndex((p) => p.id === position.id);
@@ -133,7 +156,7 @@ export class MarketService {
         positions.push(position);
       }
 
-      await redis.setex(
+      pipeline.setex(
         this.getMarketPositionsKey(position.marketId),
         CACHE_TTL.POSITION,
         JSON.stringify(positions)
@@ -143,12 +166,26 @@ export class MarketService {
       const market = await this.getMarket(position.marketId);
       if (market) {
         market.totalPositions = positions.length;
-        await redis.setex(
+        pipeline.setex(
           this.getMarketKey(position.marketId),
           CACHE_TTL.MARKET,
           JSON.stringify(market)
         );
       }
+
+      // Execute pipeline
+      await pipeline.exec();
+
+      // Broadcast position update
+      await wsService.broadcast(
+        `market:${position.marketId}:position`,
+        position
+      );
+      await wsService.broadcastToUser(
+        position.trader,
+        "position_update",
+        position
+      );
     } catch (error) {
       throw errorHandler.handle(error);
     }
@@ -183,6 +220,8 @@ export class MarketService {
 
   async updateOrder(order: Order): Promise<void> {
     try {
+      const wsService = getWebSocketService();
+
       // Update order cache
       const orders = await this.getMarketOrders(order.marketId);
       const index = orders.findIndex((o) => o.id === order.id);
@@ -197,6 +236,10 @@ export class MarketService {
         CACHE_TTL.POSITION,
         JSON.stringify(orders)
       );
+
+      // Broadcast order update
+      await wsService.broadcast(`market:${order.marketId}:order`, order);
+      await wsService.broadcastToUser(order.trader, "order_update", order);
     } catch (error) {
       throw errorHandler.handle(error);
     }
@@ -208,28 +251,44 @@ export class MarketService {
     price: number
   ): Promise<void> {
     try {
-      const alertsKey = `${CACHE_PREFIX.MARKET}${marketId}:alerts`;
+      const alertsKey = this.getMarketAlertsKey(marketId);
       const alerts = await redis.hgetall(alertsKey);
+      const pipeline = redis.pipeline();
+      const wsService = getWebSocketService();
 
       for (const [userId, alertData] of Object.entries(alerts)) {
-        const { condition, targetPrice } = JSON.parse(alertData);
-        const targetPriceNum = parseFloat(targetPrice);
+        const alert = JSON.parse(alertData) as PriceAlert;
+        const targetPrice = alert.targetPrice;
 
         if (
-          (condition === "above" && price >= targetPriceNum) ||
-          (condition === "below" && price <= targetPriceNum)
+          (alert.condition === "above" && price >= targetPrice) ||
+          (alert.condition === "below" && price <= targetPrice)
         ) {
-          await notificationService.notifyPriceAlert(
-            userId,
-            marketId,
-            price,
-            condition
-          );
-          await redis.hdel(alertsKey, userId);
+          // Remove triggered alert
+          pipeline.hdel(alertsKey, userId);
+
+          // Send notifications
+          await Promise.all([
+            notificationService.notifyPriceAlert(
+              userId,
+              marketId,
+              price,
+              alert.condition
+            ),
+            wsService.broadcastToUser(userId, "price_alert", {
+              marketId,
+              price,
+              targetPrice,
+              condition: alert.condition,
+            }),
+          ]);
         }
       }
+
+      await pipeline.exec();
     } catch (error) {
       console.error("Error checking price alerts:", error);
+      errorHandler.handle(error);
     }
   }
 
@@ -243,12 +302,10 @@ export class MarketService {
       validationService.validateMarket(marketId);
       validationService.validatePrice(targetPrice);
 
-      const alertsKey = `${CACHE_PREFIX.MARKET}${marketId}:alerts`;
-      await redis.hset(
-        alertsKey,
-        userId,
-        JSON.stringify({ targetPrice, condition })
-      );
+      const alert: PriceAlert = { targetPrice, condition };
+      const alertsKey = this.getMarketAlertsKey(marketId);
+
+      await redis.hset(alertsKey, userId, JSON.stringify(alert));
     } catch (error) {
       throw errorHandler.handle(error);
     }
@@ -257,9 +314,7 @@ export class MarketService {
   async removePriceAlert(userId: string, marketId: string): Promise<void> {
     try {
       validationService.validateMarket(marketId);
-
-      const alertsKey = `${CACHE_PREFIX.MARKET}${marketId}:alerts`;
-      await redis.hdel(alertsKey, userId);
+      await redis.hdel(this.getMarketAlertsKey(marketId), userId);
     } catch (error) {
       throw errorHandler.handle(error);
     }
@@ -274,6 +329,20 @@ export class MarketService {
       }
     } catch (error) {
       throw errorHandler.handle(error);
+    }
+  }
+
+  // Health check
+  async healthCheck(): Promise<boolean> {
+    try {
+      const testKey = `${CACHE_PREFIX.MARKET}health`;
+      await redis.setex(testKey, 5, "1");
+      const result = await redis.get(testKey);
+      await redis.del(testKey);
+      return result === "1";
+    } catch (error) {
+      console.error("Market service health check failed:", error);
+      return false;
     }
   }
 }
