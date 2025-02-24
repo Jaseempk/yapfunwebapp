@@ -1,0 +1,35 @@
+specVersion: 1.2.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: YapOrderBookFactory
+    network: base-sepolia
+    source:
+      address: "0xBaDdB642d039421d9307cc0Eb8FfA24569a695AB"
+      abi: YapOrderBookFactory
+      startBlock: 22227994
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - NewMarketInitialisedAndWhitelisted
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+      abis:
+        - name: YapOrderBookFactory
+          file: ./abis/YapOrderBookFactory.json
+      eventHandlers:
+        - event: NewMarketInitialisedAndWhitelisted(uint256,address,address)
+          handler: handleNewMarketInitialisedAndWhitelisted
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+      file: ./src/yap-order-book-factory.ts
