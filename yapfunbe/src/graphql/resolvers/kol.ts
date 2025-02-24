@@ -1,6 +1,7 @@
 import { MarketResolverContext } from "../../types/market";
 import {
   KOL,
+  KaitoKOL,
   KOLAPIResponse,
   KOLQueryResponse,
   KOLQueryArgs,
@@ -75,16 +76,25 @@ const safeParseInt = (value: string | undefined, defaultValue = 0): number => {
   return isNaN(parsed) ? defaultValue : parsed;
 };
 
-// Transform KOL API response to GraphQL schema format
-const transformKOLData = (data: KOLAPIResponse["data"]["data"][0]): KOL => ({
-  address: data.address,
-  mindshare: safeParseNumber(data.mindshare),
-  rank: safeParseInt(data.rank),
-  volume: safeParseNumber(data.volume),
-  trades: safeParseInt(data.trades),
-  pnl: safeParseNumber(data.pnl),
-  followers: safeParseInt(data.followers),
-  following: safeParseInt(data.following),
+// Transform Kaito API response to GraphQL schema format
+const transformKOLData = (data: KaitoKOL): KOL => ({
+  // Map Kaito fields to KOL interface
+  address: data.user_id, // Using user_id as address for contract interaction
+  mindshare: data.last_7_sum_mention_percentage,
+  rank: parseInt(data.rank),
+  // Hardcoded trade data as requested (to be replaced with real data later)
+  volume: 1000000, // Example: $1M volume
+  trades: 150, // Example: 150 trades
+  pnl: 25000, // Example: $25K PnL
+  followers: data.follower_count,
+  following: data.following_count,
+  // Extended fields from Kaito
+  user_id: data.user_id,
+  name: data.name,
+  username: data.username,
+  icon: data.icon,
+  bio: data.bio,
+  twitter_url: data.twitter_user_url,
 });
 
 export const kolResolvers = {

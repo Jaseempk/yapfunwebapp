@@ -4,6 +4,7 @@ import { errorHandler } from "./error";
 
 export class KOLService {
   private readonly baseUrl = "https://hub.kaito.ai/api/v1/gateway/ai";
+  private readonly apiKey = process.env.KAITO_API_KEY;
 
   private generateCacheKey(
     duration: string,
@@ -24,6 +25,10 @@ export class KOLService {
     const startTime = Date.now();
 
     try {
+      if (!this.apiKey) {
+        throw new Error("KAITO_API_KEY is not configured");
+      }
+
       const response = await fetch(
         `${this.baseUrl}?duration=${duration}&topic_id=${topicId}&top_n=${topN}`,
         {
@@ -31,6 +36,7 @@ export class KOLService {
           headers: {
             accept: "application/json, text/plain, */*",
             "content-type": "application/json",
+            "x-api-key": this.apiKey,
           },
           body: JSON.stringify({
             path: "/api/yapper/public_kol_mindshare_leaderboard",

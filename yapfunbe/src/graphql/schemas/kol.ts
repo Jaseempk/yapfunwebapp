@@ -3,29 +3,47 @@ export const kolTypeDefs = `#graphql
   Key Opinion Leader (KOL) information including performance metrics and social stats
   """
   type KOL {
-    "Ethereum address of the KOL"
+    "Twitter user ID (used as unique identifier for contract interaction)"
     address: String!
     
-    "Mindshare score indicating influence (0-100)"
+    "Mindshare score indicating influence"
     mindshare: Float!
     
     "Current ranking position"
     rank: Int!
     
-    "Total trading volume in USD"
+    "Total trading volume in USD (temporary hardcoded)"
     volume: Float!
     
-    "Total number of trades executed"
+    "Total number of trades executed (temporary hardcoded)"
     trades: Int!
     
-    "Total profit/loss in USD"
+    "Total profit/loss in USD (temporary hardcoded)"
     pnl: Float!
     
-    "Number of users following this KOL"
+    "Number of Twitter followers"
     followers: Int!
     
-    "Number of users this KOL is following"
+    "Number of Twitter following"
     following: Int!
+
+    "Twitter user ID"
+    user_id: String!
+    
+    "Display name"
+    name: String!
+    
+    "Twitter username"
+    username: String!
+    
+    "Profile image URL"
+    icon: String!
+    
+    "User biography"
+    bio: String!
+    
+    "Twitter profile URL"
+    twitter_url: String!
   }
 
   """

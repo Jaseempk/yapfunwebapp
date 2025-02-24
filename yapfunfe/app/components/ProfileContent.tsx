@@ -1,90 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount } from "wagmi";
 import PositionsContent from "./PositionsContent";
+import { useOrders } from "../hooks/useOrders";
+import { useBalances } from "../hooks/useBalances";
+import { useDeposit } from "../hooks/useDeposit";
+import { usePnL } from "../hooks/usePnL";
 import DepositModal from "./DepositModal";
+import WithdrawModal from "./WithdrawModal";
 import { motion } from "framer-motion";
-import { Sparkles, Wallet, TrendingUp, BarChart2 } from "lucide-react";
-import {
-  readContract,
-  simulateContract,
-  writeContract,
-  getAccount,
-} from "@wagmi/core";
-import { erc20Abi } from "viem";
-import { config } from "../providers/Web3Providers";
-import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
+import { Sparkles, Wallet, TrendingUp, BarChart2, Loader2 } from "lucide-react";
 export default function ProfileContent() {
   const { address } = useAccount();
-  const { data: balance } = useBalance({
-    address,
-  });
+  const { orders } = useOrders();
+  const { inHouseBalance, userBalance, refreshBalances } = useBalances();
+  const openOrdersCount = orders.filter((order) => order.status === 0).length;
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [inHouseBalance, setInHouseBalance] = useState("100.00"); // TODO: Replace with actual balance fetch
-  const [userBalance, setUserBalance] = useState("00.00"); // TODO: Replace with actual balance fetch
-  const usdcAddress = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
-  const account = getAccount(config);
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!account.address) return;
-      try {
-        const data = await readContract(config, {
-          abi: escrowAbi,
-          address: escrowCA,
-          functionName: "getUserBalance",
-          args: [account.address],
-        });
-        setInHouseBalance((Number(data) / 1e6).toString());
-      } catch (err) {
-        console.error("Error fetching balance:", err);
-        setInHouseBalance("0.00");
-      }
-    };
-    const fetchUserbalance = async () => {
-      if (!account.address) return;
-      try {
-        const data = await readContract(config, {
-          abi: erc20Abi,
-          address: usdcAddress,
-          functionName: "balanceOf",
-          args: [account.address],
-        });
-        setUserBalance((Number(data) / 1e6).toString());
-      } catch (err) {
-        console.error("Error fetching balance:", err);
-        setUserBalance("0.00");
-      }
-    };
-
-    fetchUserbalance();
-    const fetchUserBalance = fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
-  }, [account.address]);
+  const { deposit, loading: depositLoading } = useDeposit();
+  const {
+    loading: pnlLoading,
+    error: pnlError,
+    isPositive,
+    formattedPnL,
+  } = usePnL();
 
   const handleDeposit = async (
     amount: string
   ): Promise<{ success: boolean; message: string }> => {
-    // TODO: Implement actual deposit logic
-    return new Promise((resolve) => {
-      setTimeout(async () => {
-        // Simulating a successful deposit
-        if (!account.address) return;
-        const data = await readContract(config, {
-          abi: erc20Abi,
-          address: usdcAddress,
-          functionName: "balanceOf",
-          args: [account.address],
-        });
-        setInHouseBalance(data.toString());
-        resolve({ success: true, message: "Deposit successful!" });
-      }, 2000);
-    });
+    const result = await deposit(amount);
+    if (result.success) {
+      await refreshBalances();
+    }
+    return result;
   };
 
   return (
@@ -114,13 +66,23 @@ export default function ProfileContent() {
               <p className="text-2xl sm:text-3xl font-bold">
                 {inHouseBalance} USDC
               </p>
-              <Button
-                onClick={() => setIsDepositModalOpen(true)}
-                className="mt-4 bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl"
-                size="sm"
-              >
-                Deposit
-              </Button>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl"
+                  size="sm"
+                  disabled={depositLoading}
+                >
+                  {depositLoading ? "Depositing..." : "Deposit"}
+                </Button>
+                <Button
+                  onClick={() => setIsWithdrawModalOpen(true)}
+                  className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl"
+                  size="sm"
+                >
+                  Withdraw
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -156,9 +118,24 @@ export default function ProfileContent() {
               <h2 className="text-lg sm:text-2xl font-semibold mb-2">
                 Total PnL
               </h2>
-              <p className="text-2xl sm:text-3xl font-bold mt-auto">
-                +$1,234.56
-              </p>
+              {pnlLoading ? (
+                <div className="flex items-center gap-2 text-2xl sm:text-3xl font-bold mt-auto">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span>Calculating...</span>
+                </div>
+              ) : pnlError ? (
+                <p className="text-2xl sm:text-3xl font-bold mt-auto text-red-400">
+                  Error loading PnL
+                </p>
+              ) : (
+                <p
+                  className={`text-2xl sm:text-3xl font-bold mt-auto ${
+                    isPositive ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {formattedPnL}
+                </p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -175,7 +152,9 @@ export default function ProfileContent() {
               <h2 className="text-lg sm:text-2xl font-semibold mb-2">
                 Open Positions
               </h2>
-              <p className="text-2xl sm:text-3xl font-bold mt-auto">5</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-auto">
+                {openOrdersCount}
+              </p>
             </CardContent>
           </Card>
         </motion.div>
@@ -197,7 +176,13 @@ export default function ProfileContent() {
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
         onDeposit={handleDeposit}
-        maxAmount={balance?.formatted || "0"}
+        maxAmount={userBalance}
+      />
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        maxAmount={inHouseBalance}
+        onSuccess={refreshBalances}
       />
     </div>
   );

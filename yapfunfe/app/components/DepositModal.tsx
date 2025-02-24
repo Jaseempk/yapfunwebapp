@@ -69,88 +69,32 @@ export default function DepositModal({
     return () => clearInterval(interval);
   }, [account.address]);
 
-  const TOKEN_ADDRESS = "0xYourTokenAddress"; // Replace with your token address
-  const SPENDER_ADDRESS = "0xSpenderAddress"; // Replace with the spender's address
-
-  const CHAIN_ID = 1; // Mainnet (use the appropriate chain ID)
-  const PERMIT2_CONTRACT_ADDRESS = PERMIT2_ADDRESS;
-
-  // const handlePermit2Transfer = async () => {
-  //   try {
-  //     // Connect to Ethereum provider
-  //     const provider = new ethers.providers.Web3Provider(window.ethereum);
-  //     await provider.send("eth_requestAccounts", []); // Request user to connect wallet
-  //     const signer = provider.getSigner();
-  //     const userAddress = await signer.getAddress();
-
-  //     // Step 1: Generate Permit Data
-  //     const permitDetails = {
-  //       token: TOKEN_ADDRESS,
-  //       amount: ethers.utils.parseUnits("100", 18), // Approve 100 tokens
-  //       expiration: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour from now
-  //       nonce: 0, // Nonce for the permit (can be fetched from Permit2 contract)
-  //     };
-
-  //     const permitSingle = {
-  //       details: permitDetails,
-  //       spender: SPENDER_ADDRESS,
-  //       sigDeadline: Math.floor(Date.now() / 1000) + 60 * 10, // Signature valid for 10 minutes
-  //     };
-
-  //     // Generate the EIP-712 domain
-  //     const domain = {
-  //       name: "Permit2",
-  //       chainId: CHAIN_ID,
-  //       verifyingContract: PERMIT2_CONTRACT_ADDRESS,
-  //     };
-
-  //     // Sign the permit
-  //     const signature = await signer._signTypedData(
-  //       domain,
-  //       AllowanceTransfer.types,
-  //       {
-  //         ...permitSingle,
-  //         nonce: permitDetails.nonce,
-  //       }
-  //     );
-
-  //     // Step 2: Submit the Permit and Transfer Tokens
-  //     const permit2 = new ethers.Contract(
-  //       PERMIT2_CONTRACT_ADDRESS,
-  //       [
-  //         "function permit(address owner, PermitSingle memory permitSingle, bytes calldata signature)",
-  //         "function transferFrom(address from, address to, uint160 amount, address token)",
-  //       ],
-  //       signer
-  //     );
-
-  //     // Submit the permit
-  //     await permit2.permit(
-  //       userAddress,
-  //       {
-  //         details: permitDetails,
-  //         spender: SPENDER_ADDRESS,
-  //         sigDeadline: permitSingle.sigDeadline,
-  //       },
-  //       signature
-  //     );
-
-  //     // Transfer tokens using Permit2
-  //     await permit2.transferFrom(
-  //       userAddress, // From
-  //       SPENDER_ADDRESS, // To
-  //       ethers.utils.parseUnits("50", 18), // Transfer 50 tokens
-  //       TOKEN_ADDRESS
-  //     );
-  //   } catch (error) {
-  //     console.error("Permit2 transfer failed:", error);
-  //     throw error;
-  //   }
-  // };
-
   const usdcAddress = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
-  const handlApproveUsdc = async () => {
+
+  const checkAllowance = async (): Promise<boolean> => {
+    if (!account.address) return false;
     try {
+      const currentAllowance = await readContract(config, {
+        abi: erc20Abi,
+        address: usdcAddress,
+        functionName: "allowance",
+        args: [account.address, escrowCA],
+      });
+      return BigInt(currentAllowance) >= parseUnits(amount, 6);
+    } catch (err) {
+      console.error("Error checking allowance:", err);
+      return false;
+    }
+  };
+
+  const handleApproveUsdc = async (): Promise<boolean> => {
+    try {
+      const hasAllowance = await checkAllowance();
+      if (hasAllowance) {
+        console.log("Sufficient allowance exists, skipping approval");
+        return true;
+      }
+
       const { request } = await simulateContract(config, {
         abi: erc20Abi,
         address: usdcAddress,
@@ -159,20 +103,28 @@ export default function DepositModal({
       });
 
       const result = await writeContract(config, request);
-      console.log("resulet:", result);
+      console.log("Approval result:", result);
+      return true;
     } catch (err) {
       console.error("USDC approval failed:", err);
-
-      return;
+      return false;
     }
   };
 
   const handleDeposit = async () => {
     setIsLoading(true);
     try {
+      if (!account.address) {
+        throw new Error("Please connect your wallet");
+      }
+
+      const approvalSuccess = await handleApproveUsdc();
+      if (!approvalSuccess) {
+        throw new Error("USDC approval failed");
+      }
+
       const response = await onDeposit(amount);
       console.log(`Depositing ${amount} USDC`);
-      await handlApproveUsdc();
 
       const { request } = await simulateContract(config, {
         abi: escrowAbi,
@@ -182,13 +134,17 @@ export default function DepositModal({
       });
 
       const result = await writeContract(config, request);
-      console.log("resulet:", result);
+      console.log("Deposit result:", result);
 
       setResult(response);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred during the deposit";
       setResult({
         success: false,
-        message: "An error occurred during the deposit.",
+        message: errorMessage,
       });
     }
     setIsLoading(false);

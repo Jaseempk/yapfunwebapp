@@ -19,6 +19,31 @@ export const DurationMap: Record<Duration, string> = {
   [Duration.ALL_TIME]: "all",
 };
 
+// Kaito API response interface
+export interface KaitoKOL {
+  user_id: string;
+  last_7_day_standard_smart_engagement_count: number;
+  last_7_day_engagement_count: number;
+  last_7_day_mention_count: number;
+  last_7_sum_mention_percentage: number;
+  last_7_day_avg_llm_insightfulness_score_scaled: number;
+  last_7_day_avg_originality_score_scaled: number;
+  rank: string;
+  last_7_normalized_mention_score: number;
+  mindshare: number;
+  name: string;
+  username: string;
+  icon: string;
+  bio: string;
+  created_at: string;
+  following_count: number;
+  follower_count: number;
+  smart_following_count: number;
+  smart_follower_count: number;
+  twitter_user_url: string;
+}
+
+// Legacy KOL interface for backward compatibility
 export interface KOL {
   address: string;
   mindshare: number;
@@ -28,20 +53,18 @@ export interface KOL {
   pnl: number;
   followers: number;
   following: number;
+  // Extended fields from Kaito
+  user_id?: string;
+  name?: string;
+  username?: string;
+  icon?: string;
+  bio?: string;
+  twitter_url?: string;
 }
 
 export interface KOLAPIResponse {
   data: {
-    data: Array<{
-      address: string;
-      mindshare: string;
-      rank: string;
-      volume: string;
-      trades: string;
-      pnl: string;
-      followers: string;
-      following: string;
-    }>;
+    data: Array<KaitoKOL>;
   };
   latency?: number;
 }
