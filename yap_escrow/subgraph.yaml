@@ -1,0 +1,50 @@
+specVersion: 1.2.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: YapEscrow
+    network: base-sepolia
+    source:
+      address: "0x0f9ee075C54130b316BCc1624BeD52FD3420be7B"
+      abi: YapEscrow
+      startBlock: 22227994
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - OrderFulFilled
+        - PnLSettled
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+        - UserBalanceLocked
+        - UserBalanceUnlocked
+        - UserDepositWithdrawn
+        - UserFundDeposited
+      abis:
+        - name: YapEscrow
+          file: ./abis/YapEscrow.json
+      eventHandlers:
+        - event: OrderFulFilled(address,address,uint256)
+          handler: handleOrderFulFilled
+        - event: PnLSettled(address,address,uint256)
+          handler: handlePnLSettled
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+        - event: UserBalanceLocked(address,address,uint256)
+          handler: handleUserBalanceLocked
+        - event: UserBalanceUnlocked(address,address,uint256)
+          handler: handleUserBalanceUnlocked
+        - event: UserDepositWithdrawn(address,uint256)
+          handler: handleUserDepositWithdrawn
+        - event: UserFundDeposited(address,uint256,uint256,uint256)
+          handler: handleUserFundDeposited
+      file: ./src/yap-escrow.ts

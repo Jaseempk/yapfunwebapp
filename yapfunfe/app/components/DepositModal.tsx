@@ -21,6 +21,10 @@ import {
 import { config } from "../providers/Web3Providers";
 import { parseUnits, erc20Abi } from "viem";
 
+import { ethers } from "ethers";
+import { MaxUint256 } from "@uniswap/permit2-sdk";
+import { AllowanceTransfer, PERMIT2_ADDRESS } from "@uniswap/permit2-sdk";
+
 interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -64,6 +68,85 @@ export default function DepositModal({
     const interval = setInterval(fetchBalance, 10000);
     return () => clearInterval(interval);
   }, [account.address]);
+
+  const TOKEN_ADDRESS = "0xYourTokenAddress"; // Replace with your token address
+  const SPENDER_ADDRESS = "0xSpenderAddress"; // Replace with the spender's address
+
+  const CHAIN_ID = 1; // Mainnet (use the appropriate chain ID)
+  const PERMIT2_CONTRACT_ADDRESS = PERMIT2_ADDRESS;
+
+  // const handlePermit2Transfer = async () => {
+  //   try {
+  //     // Connect to Ethereum provider
+  //     const provider = new ethers.providers.Web3Provider(window.ethereum);
+  //     await provider.send("eth_requestAccounts", []); // Request user to connect wallet
+  //     const signer = provider.getSigner();
+  //     const userAddress = await signer.getAddress();
+
+  //     // Step 1: Generate Permit Data
+  //     const permitDetails = {
+  //       token: TOKEN_ADDRESS,
+  //       amount: ethers.utils.parseUnits("100", 18), // Approve 100 tokens
+  //       expiration: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour from now
+  //       nonce: 0, // Nonce for the permit (can be fetched from Permit2 contract)
+  //     };
+
+  //     const permitSingle = {
+  //       details: permitDetails,
+  //       spender: SPENDER_ADDRESS,
+  //       sigDeadline: Math.floor(Date.now() / 1000) + 60 * 10, // Signature valid for 10 minutes
+  //     };
+
+  //     // Generate the EIP-712 domain
+  //     const domain = {
+  //       name: "Permit2",
+  //       chainId: CHAIN_ID,
+  //       verifyingContract: PERMIT2_CONTRACT_ADDRESS,
+  //     };
+
+  //     // Sign the permit
+  //     const signature = await signer._signTypedData(
+  //       domain,
+  //       AllowanceTransfer.types,
+  //       {
+  //         ...permitSingle,
+  //         nonce: permitDetails.nonce,
+  //       }
+  //     );
+
+  //     // Step 2: Submit the Permit and Transfer Tokens
+  //     const permit2 = new ethers.Contract(
+  //       PERMIT2_CONTRACT_ADDRESS,
+  //       [
+  //         "function permit(address owner, PermitSingle memory permitSingle, bytes calldata signature)",
+  //         "function transferFrom(address from, address to, uint160 amount, address token)",
+  //       ],
+  //       signer
+  //     );
+
+  //     // Submit the permit
+  //     await permit2.permit(
+  //       userAddress,
+  //       {
+  //         details: permitDetails,
+  //         spender: SPENDER_ADDRESS,
+  //         sigDeadline: permitSingle.sigDeadline,
+  //       },
+  //       signature
+  //     );
+
+  //     // Transfer tokens using Permit2
+  //     await permit2.transferFrom(
+  //       userAddress, // From
+  //       SPENDER_ADDRESS, // To
+  //       ethers.utils.parseUnits("50", 18), // Transfer 50 tokens
+  //       TOKEN_ADDRESS
+  //     );
+  //   } catch (error) {
+  //     console.error("Permit2 transfer failed:", error);
+  //     throw error;
+  //   }
+  // };
 
   const usdcAddress = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
   const handlApproveUsdc = async () => {

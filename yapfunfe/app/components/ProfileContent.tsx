@@ -102,26 +102,6 @@ export default function ProfileContent() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className="h-full"
-        >
-          <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-xl h-full hover:shadow-lg hover:shadow-blue-500/20 transform hover:-translate-y-1 transition-all duration-300">
-            <CardContent className="p-4 sm:p-6 flex flex-col h-full">
-              <Wallet className="w-6 h-6 sm:w-8 sm:h-8 mb-3 sm:mb-4" />
-              <h2 className="text-lg sm:text-2xl font-semibold mb-2">
-                Wallet Balance
-              </h2>
-
-              <p className="text-2xl sm:text-3xl font-bold mt-auto">
-                {Math.floor(Number(userBalance))} USDC
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           className="h-full"
         >
@@ -141,6 +121,25 @@ export default function ProfileContent() {
               >
                 Deposit
               </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="h-full"
+        >
+          <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-xl h-full hover:shadow-lg hover:shadow-blue-500/20 transform hover:-translate-y-1 transition-all duration-300">
+            <CardContent className="p-4 sm:p-6 flex flex-col h-full">
+              <Wallet className="w-6 h-6 sm:w-8 sm:h-8 mb-3 sm:mb-4" />
+              <h2 className="text-lg sm:text-2xl font-semibold mb-2">
+                Wallet Balance
+              </h2>
+
+              <p className="text-2xl sm:text-3xl font-bold mt-auto">
+                {Math.floor(Number(userBalance))} USDC
+              </p>
             </CardContent>
           </Card>
         </motion.div>
