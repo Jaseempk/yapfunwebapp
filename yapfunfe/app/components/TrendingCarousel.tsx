@@ -168,22 +168,7 @@ export default function TrendingCarousel() {
         </div>
         <div className="flex items-center gap-4 sm:ml-auto">
           <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={prevPage}
-              className="h-8 w-8 sm:h-9 sm:w-9 bg-background/80 backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={nextPage}
-              className="h-8 w-8 sm:h-9 sm:w-9 bg-background/80 backdrop-blur-sm"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+
           </div>
           <div className="flex items-center space-x-1 sm:hidden">
             {Array.from({ length: totalPages }).map((_, i) => (

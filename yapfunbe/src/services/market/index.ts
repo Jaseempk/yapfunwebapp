@@ -1,6 +1,7 @@
 export { marketService } from "./market";
 export { marketEventHandler } from "./events";
 export { marketConfig } from "./config";
+export { kolOrderbookService } from "./kolOrderbook";
 
 // Types
 export type { Market, Position, Order } from "../../types/market";

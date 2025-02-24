@@ -14,9 +14,9 @@ export default function Home() {
           <div className="flex-1 bg-background/50 backdrop-blur-sm rounded-xl p-2 sm:p-4">
             <TrendingCarousel />
           </div>
-          <div className="lg:w-[400px] bg-background/50 backdrop-blur-sm rounded-xl p-2 sm:p-4">
+          {/* <div className="lg:w-[400px] bg-background/50 backdrop-blur-sm rounded-xl p-2 sm:p-4">
             <NewKOLDeployments />
-          </div>
+          </div> */}
         </div>
         <div className="mt-2 sm:mt-4 bg-background/50 backdrop-blur-sm rounded-xl p-2 sm:p-4">
           <RankingsContent />

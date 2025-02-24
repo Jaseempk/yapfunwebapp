@@ -98,24 +98,21 @@ export default function KOLCard({
             </div>
 
             <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-4 text-[10px] sm:text-sm">
-              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+              <div className="flex items-center bg-background/50 rounded-lg p-1.5 sm:p-2">
                 <BarChart2 className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                 <span className="text-muted-foreground truncate pl-1">
                   {volume}
                 </span>
               </div>
-              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+              <div className="flex items-center bg-background/50 rounded-lg p-1.5 sm:p-2">
                 <Users className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                 <span className="text-muted-foreground truncate pl-1">
                   {participants}
                 </span>
               </div>
-              <div className="flex items-center justify-between bg-background/50 rounded-lg p-1.5 sm:p-2">
+              <div className="flex items-center bg-background/50 rounded-lg p-1.5 sm:p-2">
                 <span className="text-muted-foreground truncate">
-                  {tweetCount}
-                </span>
-                <span className="text-muted-foreground truncate pl-1">
-                  tweets
+                  {tweetCount} tweets
                 </span>
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, AlertTriangle, Loader2 } from "lucide-react";
+import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
+import {
+  readContract,
+  simulateContract,
+  writeContract,
+  getAccount,
+} from "@wagmi/core";
+import { config } from "../providers/Web3Providers";
+import { parseUnits, erc20Abi } from "viem";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -18,6 +27,7 @@ interface DepositModalProps {
   onDeposit: (amount: string) => Promise<{ success: boolean; message: string }>;
   maxAmount: string;
 }
+const account = getAccount(config);
 
 export default function DepositModal({
   isOpen,
@@ -31,11 +41,66 @@ export default function DepositModal({
     success: boolean;
     message: string;
   } | null>(null);
+  const [balance, setBalance] = useState("0.00");
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!account.address) return;
+      try {
+        const data = await readContract(config, {
+          abi: escrowAbi,
+          address: escrowCA,
+          functionName: "getUserBalance",
+          args: [account.address],
+        });
+        setBalance((Number(data) / 1e6).toString());
+      } catch (err) {
+        console.error("Error fetching balance:", err);
+        setBalance("0.00");
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [account.address]);
+
+  const usdcAddress = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
+  const handlApproveUsdc = async () => {
+    try {
+      const { request } = await simulateContract(config, {
+        abi: erc20Abi,
+        address: usdcAddress,
+        functionName: "approve",
+        args: [escrowCA, parseUnits(amount, 6)],
+      });
+
+      const result = await writeContract(config, request);
+      console.log("resulet:", result);
+    } catch (err) {
+      console.error("USDC approval failed:", err);
+
+      return;
+    }
+  };
 
   const handleDeposit = async () => {
     setIsLoading(true);
     try {
       const response = await onDeposit(amount);
+      console.log(`Depositing ${amount} USDC`);
+      await handlApproveUsdc();
+
+      const { request } = await simulateContract(config, {
+        abi: escrowAbi,
+        address: escrowCA,
+        functionName: "depositUserFund",
+        args: [parseUnits(amount, 6)],
+      });
+
+      const result = await writeContract(config, request);
+      console.log("resulet:", result);
+
       setResult(response);
     } catch (error) {
       setResult({

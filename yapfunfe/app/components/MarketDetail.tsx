@@ -14,7 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Info,
@@ -28,6 +28,21 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { motion } from "framer-motion";
+
+import {
+  readContract,
+  simulateContract,
+  writeContract,
+  getAccount,
+} from "@wagmi/core";
+import { obAbi, obCA } from "@/contractAbi/orderBook";
+
+import { config } from "../providers/Web3Providers";
+
+import { parseUnits } from "viem";
+import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
+
+const account = getAccount(config);
 
 interface MarketDetailProps {
   isOpen: boolean;
@@ -145,10 +160,45 @@ export default function MarketDetail({
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"long" | "short">("long");
   const chartData = generateChartData(timeRange);
+  const [inHouseBalance, setInHouseBalance] = useState("100.00"); // TODO: Replace with actual balance fetch
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!account.address) return;
+      try {
+        const data = await readContract(config, {
+          abi: escrowAbi,
+          address: escrowCA,
+          functionName: "getUserBalance",
+          args: [account.address],
+        });
+        setInHouseBalance((Number(data) / 1e6).toString());
+      } catch (err) {
+        console.error("Error fetching balance:", err);
+        setInHouseBalance("0.00");
+      }
+    };
+    const fetchUserBalance = fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [account.address]);
 
   const handlePlaceOrder = async () => {
     setIsLoading(true);
     // Simulate API call
+    try {
+      const { request } = await simulateContract(config, {
+        abi: obAbi,
+        address: obCA,
+        functionName: "createOrder",
+        args: [activeTab === "long", parseUnits(amount, 6)],
+      });
+
+      const result = await writeContract(config, request);
+      console.log("resulet:", result);
+    } catch (err) {
+      console.error("USDC approval failed:", err);
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsLoading(false);
     // Handle order placement
@@ -222,7 +272,7 @@ export default function MarketDetail({
                       Last updated: {new Date().toLocaleTimeString()}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1 -mx-1 sm:mx-0">
+                  <div className="flex flex-wrap gap-1 -mx-1 sm:mx-0 ">
                     {timeRanges.map((range) => (
                       <Button
                         key={range.value}
@@ -231,7 +281,7 @@ export default function MarketDetail({
                         }
                         size="sm"
                         onClick={() => setTimeRange(range.value)}
-                        className="text-xs px-2 sm:px-2.5 flex-1 sm:flex-none"
+                        className="text-xs px-2 sm:px-2.5 flex-1 sm:flex-none rounded-xl"
                       >
                         {range.label}
                       </Button>
@@ -345,7 +395,7 @@ export default function MarketDetail({
                       <div className="flex justify-between text-xs sm:text-sm mb-2">
                         <span className="text-muted-foreground">Amount</span>
                         <span className="text-muted-foreground">
-                          Balance: $1,000
+                          Balance: ${inHouseBalance}
                         </span>
                       </div>
                       <div className="flex space-x-2">
@@ -365,16 +415,21 @@ export default function MarketDetail({
                         </Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 gap-2 ">
                       {[25, 50, 75, 100].map((percent) => (
                         <Button
                           key={percent}
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            setAmount((1000 * (percent / 100)).toString())
+                            setAmount(
+                              (
+                                Number(inHouseBalance) *
+                                (percent / 100)
+                              ).toString()
+                            )
                           }
-                          className="text-xs"
+                          className="text-xs rounded-xl"
                         >
                           {percent}%
                         </Button>

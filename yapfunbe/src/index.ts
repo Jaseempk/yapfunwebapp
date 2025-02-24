@@ -19,6 +19,7 @@ import { cacheUtils, redis } from "./config/cache";
 import { errorHandler } from "./services/error";
 import { analyticsService } from "./services/analytics";
 import { initializeWebSocket, getWebSocketService } from "./services/websocket";
+import { kolOrderbookService } from "./services/market";
 
 // Load environment variables
 dotenv.config();
@@ -184,6 +185,14 @@ async function startServer() {
     })
   );
 
+  // Initialize KOL orderbook automation
+  try {
+    await kolOrderbookService.initialize();
+    console.log("🤖 KOL orderbook automation service initialized");
+  } catch (error) {
+    console.error("Failed to initialize KOL orderbook service:", error);
+  }
+
   // Start server
   const PORT = process.env.PORT || 4000;
   httpServer.listen(PORT, () => {
@@ -201,7 +210,13 @@ async function startServer() {
   const shutdown = async (signal: string) => {
     console.log(`${signal} received. Shutting down gracefully...`);
     try {
-      await Promise.all([server.stop(), wsService.cleanup(), redis.quit()]);
+      await Promise.all([
+        server.stop(),
+        wsService.cleanup(),
+        redis.quit(),
+        // Clear any pending intervals from KOL orderbook service
+        clearInterval(kolOrderbookService["checkInterval"]),
+      ]);
       console.log("Cleanup completed. Exiting...");
       process.exit(0);
     } catch (error) {

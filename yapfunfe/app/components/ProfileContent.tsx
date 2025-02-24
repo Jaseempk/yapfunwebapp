@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAccount, useBalance } from "wagmi";
@@ -8,7 +8,15 @@ import PositionsContent from "./PositionsContent";
 import DepositModal from "./DepositModal";
 import { motion } from "framer-motion";
 import { Sparkles, Wallet, TrendingUp, BarChart2 } from "lucide-react";
-
+import {
+  readContract,
+  simulateContract,
+  writeContract,
+  getAccount,
+} from "@wagmi/core";
+import { erc20Abi } from "viem";
+import { config } from "../providers/Web3Providers";
+import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
 export default function ProfileContent() {
   const { address } = useAccount();
   const { data: balance } = useBalance({
@@ -16,19 +24,64 @@ export default function ProfileContent() {
   });
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [inHouseBalance, setInHouseBalance] = useState("100.00"); // TODO: Replace with actual balance fetch
+  const [userBalance, setUserBalance] = useState("00.00"); // TODO: Replace with actual balance fetch
+  const usdcAddress = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
+
+  const account = getAccount(config);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!account.address) return;
+      try {
+        const data = await readContract(config, {
+          abi: escrowAbi,
+          address: escrowCA,
+          functionName: "getUserBalance",
+          args: [account.address],
+        });
+        setInHouseBalance((Number(data) / 1e6).toString());
+      } catch (err) {
+        console.error("Error fetching balance:", err);
+        setInHouseBalance("0.00");
+      }
+    };
+    const fetchUserbalance = async () => {
+      if (!account.address) return;
+      try {
+        const data = await readContract(config, {
+          abi: erc20Abi,
+          address: usdcAddress,
+          functionName: "balanceOf",
+          args: [account.address],
+        });
+        setUserBalance((Number(data) / 1e6).toString());
+      } catch (err) {
+        console.error("Error fetching balance:", err);
+        setUserBalance("0.00");
+      }
+    };
+
+    fetchUserbalance();
+    const fetchUserBalance = fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [account.address]);
 
   const handleDeposit = async (
     amount: string
   ): Promise<{ success: boolean; message: string }> => {
     // TODO: Implement actual deposit logic
     return new Promise((resolve) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         // Simulating a successful deposit
-        setInHouseBalance((prevBalance) =>
-          (Number.parseFloat(prevBalance) + Number.parseFloat(amount)).toFixed(
-            2
-          )
-        );
+        if (!account.address) return;
+        const data = await readContract(config, {
+          abi: erc20Abi,
+          address: usdcAddress,
+          functionName: "balanceOf",
+          args: [account.address],
+        });
+        setInHouseBalance(data.toString());
         resolve({ success: true, message: "Deposit successful!" });
       }, 2000);
     });
@@ -58,11 +111,9 @@ export default function ProfileContent() {
               <h2 className="text-lg sm:text-2xl font-semibold mb-2">
                 Wallet Balance
               </h2>
+
               <p className="text-2xl sm:text-3xl font-bold mt-auto">
-                {balance?.formatted
-                  ? Number(balance.formatted).toFixed(4)
-                  : "0"}{" "}
-                {balance?.symbol}
+                {Math.floor(Number(userBalance))} USDC
               </p>
             </CardContent>
           </Card>
@@ -81,7 +132,7 @@ export default function ProfileContent() {
                 In-house Balance
               </h2>
               <p className="text-2xl sm:text-3xl font-bold">
-                ${inHouseBalance}
+                {inHouseBalance} USDC
               </p>
               <Button
                 onClick={() => setIsDepositModalOpen(true)}

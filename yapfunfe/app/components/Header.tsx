@@ -9,6 +9,9 @@ import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ConnectKitButton } from "connectkit";
 import { useAccount, useBalance } from "wagmi";
+import { getAccount, readContract } from "@wagmi/core";
+import { config } from "../providers/Web3Providers";
+import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
 
 const navigation = [
   { name: "Rankings", href: "/" },
@@ -32,13 +35,34 @@ export default function Header() {
 
   const [inHouseBalance, setInHouseBalance] = useState("0.00");
 
+  const account = getAccount(config);
   // Fetch in-house balance when wallet is connected
   useEffect(() => {
-    if (address) {
+    if (account.address) {
+      const fetchBalance = async () => {
+        if (!account.address) return;
+        try {
+          const data = await readContract(config, {
+            abi: escrowAbi,
+            address: escrowCA,
+            functionName: "getUserBalance",
+            args: [account.address],
+          });
+          setInHouseBalance((Number(data) / 1e6).toString());
+        } catch (err) {
+          console.error("Error fetching balance:", err);
+          setInHouseBalance("0.00");
+        }
+      };
+
+      fetchBalance();
+
+      const interval = setInterval(fetchBalance, 10000);
+      return () => clearInterval(interval);
       // TODO: Replace with actual API call to fetch in-house balance
       setInHouseBalance("100.00");
     }
-  }, [address]);
+  }, [account.address]);
 
   return (
     <header className="border-b border-gray-800/50 sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
