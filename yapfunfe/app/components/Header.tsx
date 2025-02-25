@@ -53,7 +53,7 @@ export default function Header() {
                 !isActive("/positions")
                   ? "bg-secondary text-secondary-foreground"
                   : "hover:bg-secondary/50"
-              }`}
+              } rounded-xl`}
             >
               Rankings
             </Link>
@@ -63,7 +63,7 @@ export default function Header() {
                 isActive("/positions")
                   ? "bg-secondary text-secondary-foreground"
                   : "hover:bg-secondary/50"
-              }`}
+              } rounded-xl`}
             >
               Positions
             </Link>
@@ -73,7 +73,7 @@ export default function Header() {
                 isActive("/analytics")
                   ? "bg-secondary text-secondary-foreground"
                   : "hover:bg-secondary/50"
-              }`}
+              } rounded-xl`}
             >
               Analytics
             </Link>

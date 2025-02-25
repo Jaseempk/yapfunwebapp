@@ -43,9 +43,9 @@ export default function Home() {
       </Suspense>
 
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
+        {/* <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
           Top KOL Rankings
-        </h2>
+        </h2> */}
         <Suspense fallback={<RankingsSkeleton />}>
           <RankingsContent />
         </Suspense>
