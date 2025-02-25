@@ -43,7 +43,7 @@ export interface KaitoKOL {
   twitter_user_url: string;
 }
 
-// Legacy KOL interface for backward compatibility
+// KOL interface
 export interface KOL {
   address: string;
   mindshare: number;
@@ -53,13 +53,34 @@ export interface KOL {
   pnl: number;
   followers: number;
   following: number;
-  // Extended fields from Kaito
-  user_id?: string;
-  name?: string;
-  username?: string;
-  icon?: string;
-  bio?: string;
-  twitter_url?: string;
+  user_id: string;
+  name: string;
+  username: string;
+  icon: string;
+  bio: string;
+  twitter_url: string;
+  last_7_day_mention_count: number;
+}
+
+// KOL performance statistics
+export interface KOLStats {
+  mindshare: number;
+  rank: number;
+  volume: number;
+  trades: number;
+  pnl: number;
+  followers: number;
+  following: number;
+}
+
+// KOL trade information
+export interface KOLTrade {
+  id: string;
+  timestamp: string;
+  type: string;
+  amount: number;
+  price: number;
+  pnl?: number;
 }
 
 export interface KOLAPIResponse {

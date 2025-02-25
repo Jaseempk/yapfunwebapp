@@ -1,71 +1,32 @@
-export { marketService } from "./market";
-export { marketEventHandler } from "./events";
-export { marketConfig } from "./config";
-export { kolOrderbookService } from "./kolOrderbook";
+import { marketEvents } from "./events";
+import { kolOrderbookService } from "./kolOrderbook";
+import { MarketEventType } from "./events";
 
-// Types
-export type { Market, Position, Order } from "../../types/market";
-export {
-  OrderType,
-  OrderStatus,
-  PositionType,
-  PositionStatus,
-} from "../../types/market";
+export { kolOrderbookService };
 
-// Market Service Types
-export interface MarketServiceOptions {
-  enableCache?: boolean;
-  cacheTTL?: number;
-  batchSize?: number;
-}
+// Market service initialization
+export async function initializeMarketServices(): Promise<void> {
+  try {
+    // Subscribe to market events
+    marketEvents.subscribe(MarketEventType.PRICE_UPDATE, (event) => {
+      console.log("Price update event:", event);
+    });
 
-export interface MarketServiceContext {
-  userId?: string;
-  address?: string;
-  chainId?: number;
-}
+    marketEvents.subscribe(MarketEventType.TRADE, (event) => {
+      console.log("Trade event:", event);
+    });
 
-export interface MarketUpdateOptions {
-  skipCache?: boolean;
-  skipValidation?: boolean;
-  skipNotification?: boolean;
-}
+    marketEvents.subscribe(MarketEventType.POSITION_UPDATE, (event) => {
+      console.log("Position update event:", event);
+    });
 
-export interface MarketQueryOptions {
-  limit?: number;
-  offset?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  filter?: Record<string, any>;
-}
+    marketEvents.subscribe(MarketEventType.LIQUIDATION, (event) => {
+      console.log("Liquidation event:", event);
+    });
 
-// Event Types
-export interface MarketEventOptions {
-  fromBlock?: number;
-  toBlock?: number | "latest";
-  batchSize?: number;
-}
-
-export interface MarketEventContext {
-  marketId: string;
-  timestamp: number;
-  blockNumber: number;
-  transactionHash: string;
-}
-
-// Config Types
-export interface MarketConfigOptions {
-  chainId?: number;
-  rpcUrl?: string;
-  factoryAddress?: string;
-  escrowAddress?: string;
-  subgraphUrl?: string;
-}
-
-export interface MarketValidationContext {
-  marketId: string;
-  trader: string;
-  amount: number;
-  leverage?: number;
-  price?: number;
+    console.log("Market services initialized");
+  } catch (error) {
+    console.error("Error initializing market services:", error);
+    throw error;
+  }
 }

@@ -44,6 +44,34 @@ export const kolTypeDefs = `#graphql
     
     "Twitter profile URL"
     twitter_url: String!
+
+    "Number of mentions in the last 7 days"
+    last_7_day_mention_count: Int!
+  }
+
+  """
+  KOL performance statistics
+  """
+  type KOLStats {
+    mindshare: Float!
+    rank: Int!
+    volume: Float!
+    trades: Int!
+    pnl: Float!
+    followers: Int!
+    following: Int!
+  }
+
+  """
+  KOL trade information
+  """
+  type KOLTrade {
+    id: ID!
+    timestamp: String!
+    type: String!
+    amount: Float!
+    price: Float!
+    pnl: Float
   }
 
   """
@@ -84,6 +112,44 @@ export const kolTypeDefs = `#graphql
   }
 
   extend type Query {
+    """
+    Get paginated list of KOLs
+    """
+    kols(
+      "Number of KOLs to return"
+      limit: Int
+      "Number of KOLs to skip"
+      offset: Int
+    ): [KOL!]!
+
+    """
+    Get a specific KOL by ID
+    """
+    kol(
+      "KOL identifier"
+      id: String!
+    ): KOL!
+
+    """
+    Get KOL performance statistics
+    """
+    kolStats(
+      "KOL identifier"
+      id: String!
+    ): KOLStats!
+
+    """
+    Get paginated list of KOL trades
+    """
+    kolTrades(
+      "KOL identifier"
+      id: String!
+      "Number of trades to return"
+      limit: Int
+      "Number of trades to skip"
+      offset: Int
+    ): [KOLTrade!]!
+
     """
     Get top performing KOLs based on specified criteria
     """

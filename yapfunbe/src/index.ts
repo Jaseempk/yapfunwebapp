@@ -18,7 +18,7 @@ import { rateLimiter } from "./services/rateLimit";
 import { cacheUtils, redis } from "./config/cache";
 import { errorHandler } from "./services/error";
 import { analyticsService } from "./services/analytics";
-import { initializeWebSocket, getWebSocketService } from "./services/websocket";
+import { initializeWebSocket } from "./services/websocket";
 import { kolOrderbookService } from "./services/market";
 
 // Load environment variables
@@ -108,7 +108,7 @@ async function startServer() {
   const wsService = initializeWebSocket(httpServer);
 
   // Health check endpoint
-  app.get("/health", async (req, res) => {
+  app.get("/health", async (_req, res) => {
     try {
       const [redisHealth, wsHealth] = await Promise.all([
         cacheUtils.healthCheck(),
@@ -159,7 +159,10 @@ async function startServer() {
   // Middleware
   app.use(
     "/graphql",
-    cors<cors.CorsRequest>(),
+    cors<cors.CorsRequest>({
+      origin: ["http://localhost:3000"], // Add your frontend URL
+      credentials: true,
+    }),
     express.json(),
     // Rate limiting middleware
     async (
@@ -214,8 +217,7 @@ async function startServer() {
         server.stop(),
         wsService.cleanup(),
         redis.quit(),
-        // Clear any pending intervals from KOL orderbook service
-        clearInterval(kolOrderbookService["checkInterval"]),
+        kolOrderbookService.cleanup(),
       ]);
       console.log("Cleanup completed. Exiting...");
       process.exit(0);

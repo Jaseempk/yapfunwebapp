@@ -248,7 +248,7 @@ export class MarketService {
   // Price alerts
   private async checkPriceAlerts(
     marketId: string,
-    price: number
+    currentPrice: number
   ): Promise<void> {
     try {
       const alertsKey = this.getMarketAlertsKey(marketId);
@@ -261,8 +261,8 @@ export class MarketService {
         const targetPrice = alert.targetPrice;
 
         if (
-          (alert.condition === "above" && price >= targetPrice) ||
-          (alert.condition === "below" && price <= targetPrice)
+          (alert.condition === "above" && currentPrice >= targetPrice) ||
+          (alert.condition === "below" && currentPrice <= targetPrice)
         ) {
           // Remove triggered alert
           pipeline.hdel(alertsKey, userId);
@@ -270,14 +270,14 @@ export class MarketService {
           // Send notifications
           await Promise.all([
             notificationService.notifyPriceAlert(
-              userId,
               marketId,
-              price,
+              currentPrice,
+              targetPrice,
               alert.condition
             ),
             wsService.broadcastToUser(userId, "price_alert", {
               marketId,
-              price,
+              currentPrice,
               targetPrice,
               condition: alert.condition,
             }),
