@@ -6,10 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "../providers/UserProvider";
 import { ConnectButton } from "./ConnectButton";
 import { motion } from "framer-motion";
+import { config } from "../providers/Web3Providers";
+import { getAccount } from "@wagmi/core";
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const account = getAccount(config);
   const { address, isConnected } = useUser();
 
   const isActive = useCallback(
@@ -81,18 +84,19 @@ export default function Header() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {isConnected && (
-            <button
-              onClick={handleProfileClick}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                isActive("/profile")
-                  ? "bg-secondary text-secondary-foreground"
-                  : "hover:bg-secondary/50"
-              } rounded-xl`}
-            >
-              Profile
-            </button>
-          )}
+          {isConnected ||
+            (account.address && (
+              <button
+                onClick={handleProfileClick}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  isActive("/profile")
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary/50"
+                } rounded-xl`}
+              >
+                Profile
+              </button>
+            ))}
           <ConnectButton />
         </div>
       </nav>

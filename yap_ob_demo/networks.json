@@ -1,8 +1,0 @@
-{
-  "base-sepolia": {
-    "YapOrderBook": {
-      "address": "0xb46B77179ef9A486F2C6E3Acc3F605526dcdE17E",
-      "startBlock": 22228109
-    }
-  }
-}
