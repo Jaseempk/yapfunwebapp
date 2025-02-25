@@ -107,6 +107,14 @@ async function startServer() {
   // Initialize WebSocket service
   const wsService = initializeWebSocket(httpServer);
 
+  // CORS configuration
+  const corsOptions = {
+    origin: ["http://localhost:3000", "https://studio.apollographql.com"],
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  };
+
   // Health check endpoint
   app.get("/health", async (_req, res) => {
     try {
@@ -156,33 +164,14 @@ async function startServer() {
 
   await server.start();
 
-  // Middleware
+  // Apply middleware
+  app.use(express.json());
+
+  // GraphQL endpoint with CORS
   app.use(
     "/graphql",
-    cors<cors.CorsRequest>({
-      origin: ["http://localhost:3000"], // Add your frontend URL
-      credentials: true,
-    }),
+    cors(corsOptions),
     express.json(),
-    // Rate limiting middleware
-    async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const identifier = req.headers.authorization?.split(" ")[1] || req.ip;
-        if (!identifier) {
-          throw new Error("No identifier for rate limiting");
-        }
-        await rateLimiter.checkLimit(identifier, "graphql");
-        next();
-      } catch (error) {
-        res.status(429).json({
-          error: error instanceof Error ? error.message : "Too many requests",
-        });
-      }
-    },
     expressMiddleware(server, {
       context: createContext,
     })

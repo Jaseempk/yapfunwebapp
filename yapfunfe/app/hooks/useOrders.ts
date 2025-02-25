@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import {
   readContract,
   writeContract,
-  waitForTransaction,
+  simulateContract,
   getAccount,
 } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
@@ -92,7 +92,7 @@ export function useOrders() {
     if (!address) return;
 
     try {
-      const hash = await writeContract(config, {
+      const { request } = await simulateContract(config, {
         abi: obAbi,
         address: obCA,
         functionName: "cancelOrder",
@@ -103,10 +103,7 @@ export function useOrders() {
         description: "Please wait while your order is being cancelled...",
       });
 
-      await waitForTransaction(config, {
-        hash,
-        chainId: baseSepolia.id,
-      });
+      await writeContract(config, request);
       toast({
         title: "Success",
         description: "Order cancelled successfully!",

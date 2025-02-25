@@ -2,49 +2,118 @@
 
 import {
   ApolloClient,
+  ApolloProvider as AP,
   InMemoryCache,
-  ApolloProvider as BaseApolloProvider,
   from,
   HttpLink,
+  ApolloLink,
 } from "@apollo/client";
 import { onError } from "@apollo/client/link/error";
+import { ReactNode } from "react";
 
 // Error handling link
 const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors)
+  if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path }) =>
       console.error(
         `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
       )
     );
-  if (networkError) console.error(`[Network error]: ${networkError}`);
+  }
+  if (networkError) {
+    console.error(`[Network error]: ${networkError}`);
+  }
 });
 
-// HTTP link with CORS configuration
+// HTTP link with proper configuration
 const httpLink = new HttpLink({
   uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://localhost:4000/graphql",
   credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
+});
+
+// Request logging middleware
+const loggingLink = new ApolloLink((operation, forward) => {
+  const startTime = Date.now();
+  console.log(`[GraphQL Request] ${operation.operationName}:`, {
+    query: operation.query.loc?.source.body,
+    variables: operation.variables,
+  });
+
+  return forward(operation).map((response) => {
+    const duration = Date.now() - startTime;
+    console.log(`[GraphQL Response] ${operation.operationName}:`, {
+      data: response.data,
+      errors: response.errors,
+      duration: `${duration}ms`,
+    });
+    return response;
+  });
+});
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    Query: {
+      fields: {
+        topKOLs: {
+          // Merge function for pagination
+          merge(existing = { kols: [] }, incoming) {
+            return {
+              ...incoming,
+              kols: [...(existing.kols || []), ...(incoming.kols || [])],
+            };
+          },
+          // Read function to handle cache hits
+          read(existing) {
+            return existing;
+          },
+        },
+        kols: {
+          // Cache configuration for individual KOL queries
+          keyArgs: ["id"],
+          merge(existing = [], incoming) {
+            return incoming;
+          },
+        },
+      },
+    },
+    KOL: {
+      // Unique identifier for KOL objects
+      keyFields: ["user_id"],
+      fields: {
+        // Field policies for computed fields
+        mindshare: {
+          read(mindshare = 0) {
+            return mindshare;
+          },
+        },
+        volume: {
+          read(volume = 0) {
+            return volume;
+          },
+        },
+      },
+    },
   },
 });
 
-// Apollo Client configuration
 const client = new ApolloClient({
-  link: from([errorLink, httpLink]),
-  cache: new InMemoryCache(),
+  link: from([errorLink, loggingLink, httpLink]),
+  cache,
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: "network-only",
-      errorPolicy: "all",
+      fetchPolicy: "cache-and-network",
+      nextFetchPolicy: "cache-first",
+      notifyOnNetworkStatusChange: true,
     },
     query: {
-      fetchPolicy: "network-only",
+      fetchPolicy: "cache-first",
       errorPolicy: "all",
+      notifyOnNetworkStatusChange: true,
     },
   },
+  connectToDevTools: process.env.NODE_ENV === "development",
 });
 
-export function ApolloProvider({ children }: { children: React.ReactNode }) {
-  return <BaseApolloProvider client={client}>{children}</BaseApolloProvider>;
+export function ApolloProvider({ children }: { children: ReactNode }) {
+  return <AP client={client}>{children}</AP>;
 }

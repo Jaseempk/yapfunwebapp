@@ -60,7 +60,7 @@ export interface KOLData {
   participants: number;
   tweetCount: number;
   isTop?: boolean;
-  user_id: string; // Important for contract interaction
+  user_id: string;
 }
 
 interface UseKOLDataProps {
@@ -112,8 +112,7 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
         handle: `@${kol.username}`,
         avatar: kol.icon,
         mindshare: kol.mindshare * 100, // Convert to percentage
-        // Use actual trade data if available, otherwise use hardcoded values
-        volume: formatUSD(kol.volume || 1000000),
+        volume: formatUSD(kol.volume || 1000000), // Use actual trade data if available
         participants: kol.trades || 150,
         tweetCount: kol.last_7_day_mention_count || 0,
         performance: "neutral", // Can be enhanced with historical data comparison

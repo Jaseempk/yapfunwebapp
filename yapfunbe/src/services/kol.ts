@@ -11,7 +11,8 @@ import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
 import { errorHandler } from "./error";
 
 export class KOLService {
-  private readonly baseUrl = "https://hub.kaito.ai/api/v1/gateway/ai";
+  private readonly baseUrl =
+    process.env.KAITO_API_URL || "https://hub.kaito.ai/api/v1/gateway/ai";
 
   private generateCacheKey(
     duration: string,
@@ -138,6 +139,8 @@ export class KOLService {
 
     try {
       const durationStr = DurationMap[duration];
+      console.log(`[KOL Service] Fetching data from ${this.baseUrl}`);
+
       const response = await fetch(
         `${this.baseUrl}?duration=${durationStr}&topic_id=${topicId}&top_n=${topN}`,
         {
@@ -160,10 +163,20 @@ export class KOLService {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`[KOL Service] API Error:`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
+        throw new Error(
+          `HTTP error! Status: ${response.status}, Error: ${errorText}`
+        );
       }
 
       const data = await response.json();
+      console.log(`[KOL Service] Received data:`, data);
+
       const latency = (Date.now() - startTime) / 1000; // Convert ms to seconds
 
       return {
@@ -173,7 +186,7 @@ export class KOLService {
         latency,
       };
     } catch (error) {
-      console.error("Error fetching KOL data:", error);
+      console.error("[KOL Service] Error fetching KOL data:", error);
       throw errorHandler.handle(error);
     }
   }
@@ -193,7 +206,7 @@ export class KOLService {
         CACHE_TTL.KOL
       );
     } catch (error) {
-      console.error("Error in getTopKOLsWithCache:", error);
+      console.error("[KOL Service] Error in getTopKOLsWithCache:", error);
       throw errorHandler.handle(error);
     }
   }
@@ -215,7 +228,7 @@ export class KOLService {
         await cacheUtils.clearPrefix(CACHE_PREFIX.KOL);
       }
     } catch (error) {
-      console.error("Error clearing KOL cache:", error);
+      console.error("[KOL Service] Error clearing KOL cache:", error);
       throw errorHandler.handle(error);
     }
   }
@@ -226,7 +239,7 @@ export class KOLService {
       const response = await this.getTopKOLs(Duration.ONE_DAY, "", 1);
       return response.data && Array.isArray(response.data.data);
     } catch (error) {
-      console.error("KOL service health check failed:", error);
+      console.error("[KOL Service] Health check failed:", error);
       return false;
     }
   }

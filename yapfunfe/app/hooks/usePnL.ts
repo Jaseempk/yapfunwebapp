@@ -39,11 +39,13 @@ export function usePnL() {
             );
 
             // Calculate PnL based on position type and price difference
-            const priceDiff = currentMindshare - order.mindshareValue;
+            const priceDiff =
+              currentMindshare / 1e18 - order.mindshareValue / 1e18;
             const orderPnL = order.isLong ? priceDiff : -priceDiff;
 
             // Multiply by quantity and normalize
-            const orderValue = (orderPnL * order.quantity) / 1e6;
+            const orderValue = (orderPnL * (order.quantity / 1e6)) / 1e18;
+
             total += orderValue;
           }
         }
