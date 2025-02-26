@@ -15,7 +15,7 @@ export const kolTypeDefs = `#graphql
     "Current ranking position"
     rank: Int!
     
-    "Total trading volume in USD (temporary hardcoded)"
+    "Total trading volume in USD from the market"
     volume: Float!
     
     "Total number of trades executed (temporary hardcoded)"

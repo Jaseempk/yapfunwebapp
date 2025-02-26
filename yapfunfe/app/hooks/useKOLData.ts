@@ -159,7 +159,7 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
         handle: `@${kol.username}`,
         avatar: kol.icon,
         mindshare: kol.mindshare * 100, // Convert to percentage
-        volume: formatUSD(kol.volume || 1000000), // Use actual trade data if available
+        volume: formatUSD(kol.volume || 0), // Use actual volume from the market
         participants: kol.trades || 150,
         tweetCount: kol.last_7_day_mention_count || 0,
         performance: "neutral", // Can be enhanced with historical data comparison
