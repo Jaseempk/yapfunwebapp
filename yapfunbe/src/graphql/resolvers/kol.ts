@@ -7,6 +7,8 @@ import {
 } from "../../types/kol";
 import { kolService } from "../../services/kol";
 import { errorHandler } from "../../services/error";
+import { marketEvents, MarketEventType } from "../../services/market/events";
+import { getWebSocketService } from "../../services/websocket";
 
 export const kolResolvers = {
   Query: {
@@ -79,30 +81,60 @@ export const kolResolvers = {
           throw new Error("Invalid response format from KOL service");
         }
 
+        // Transform and return data
+        const kols = await Promise.all(
+          response.data.data.map(async (kol) => {
+            try {
+              return await kolService.transformKaitoKOL(kol);
+            } catch (error) {
+              console.error(`Error transforming KOL ${kol.user_id}:`, error);
+              return {
+                address: "",
+                marketAddress: "",
+                mindshare: Number(kol.mindshare || 0),
+                rank: kol.rank || "0",
+                volume: 0,
+                trades: 0,
+                pnl: 0,
+                followers: Number(kol.follower_count || 0),
+                following: Number(kol.following_count || 0),
+                user_id: kol.user_id,
+                name: kol.name || kol.username || kol.user_id,
+                username: kol.username || "",
+                icon: kol.icon || "",
+                bio: kol.bio || "",
+                twitter_url: kol.twitter_user_url || "",
+                last_7_day_mention_count: Number(
+                  kol.last_7_day_mention_count || 0
+                ),
+              };
+            }
+          })
+        );
+
         return {
-          kols: response.data.data.map((kol) => ({
-            address: "", // Will be populated from contract data
-            mindshare: kol.mindshare,
-            rank: parseInt(kol.rank),
-            volume: 0, // Will be populated from contract data
-            trades: 0, // Will be populated from contract data
-            pnl: 0, // Will be populated from contract data
-            followers: kol.follower_count,
-            following: kol.following_count,
-            user_id: kol.user_id,
-            name: kol.name,
-            username: kol.username,
-            icon: kol.icon,
-            bio: kol.bio,
-            twitter_url: kol.twitter_user_url,
-            last_7_day_mention_count: kol.last_7_day_mention_count,
-          })),
+          kols,
           latency: response.latency,
         };
       } catch (error) {
         console.error("Error fetching top KOLs:", error);
         throw errorHandler.handle(error);
       }
+    },
+  },
+
+  Subscription: {
+    kolMarketDeployed: {
+      subscribe: (_: unknown, __: unknown, { pubsub }: { pubsub: any }) => {
+        const wsService = getWebSocketService();
+        marketEvents.subscribe(MarketEventType.MARKET_DEPLOYED, (event) => {
+          wsService.broadcast("kol:market_deployed", event.data);
+          pubsub.publish("KOL_MARKET_DEPLOYED", {
+            kolMarketDeployed: event.data,
+          });
+        });
+        return pubsub.asyncIterator(["KOL_MARKET_DEPLOYED"]);
+      },
     },
   },
 };

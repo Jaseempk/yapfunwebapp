@@ -99,9 +99,19 @@ export const marketTypeDefs = `#graphql
     cancelOrder(orderId: ID!): Order!
   }
 
+  type MarketDeployment {
+    kolId: String!
+    marketAddress: String!
+    kolName: String!
+    timestamp: String!
+    mindshare: Float!
+    rank: String!
+  }
+
   type Subscription {
     marketPriceUpdated(marketId: ID!): PricePoint!
     positionUpdated(trader: String!): Position!
     orderUpdated(trader: String!): Order!
+    marketDeployed: MarketDeployment!
   }
 `;

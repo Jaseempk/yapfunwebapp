@@ -1,21 +1,30 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOrders, Order } from "../hooks/useOrders";
+
+interface OrderWithKOL extends Order {
+  kolName: string;
+  kolHandle: string;
+}
 import { useKOLData } from "../hooks/useKOLData";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
-const PositionsContent = () => {
-  const { orders, loading: ordersLoading, error: ordersError } = useOrders();
+interface PositionsContentProps {
+  userAddress?: string;
+}
+
+const PositionsContent = ({ userAddress }: PositionsContentProps) => {
   const { kols, loading: kolsLoading } = useKOLData({ timeFilter: "7d" });
+  const { orders, loading, error } = useOrders(undefined, userAddress, kols);
 
   // Memoize filtered orders to prevent unnecessary re-renders
-  const activeOrders = useMemo(() => {
+  const activeOrders = useMemo((): OrderWithKOL[] => {
     return orders
-      .filter((order) => order.status === 0)
-      .map((order) => {
+      .filter((order: Order) => order.status === 0)
+      .map((order: Order): OrderWithKOL => {
         const kol = kols.find((k) => k.user_id === order.kolId);
         return {
           ...order,
@@ -41,7 +50,7 @@ const PositionsContent = () => {
     }
   }
 
-  if (ordersLoading || kolsLoading) {
+  if (loading || kolsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -49,7 +58,7 @@ const PositionsContent = () => {
     );
   }
 
-  if (ordersError) {
+  if (error) {
     return (
       <div className="text-center text-red-500 min-h-[200px] flex items-center justify-center">
         Error loading positions
@@ -67,7 +76,7 @@ const PositionsContent = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {activeOrders.map((order, index) => (
+      {activeOrders.map((order: OrderWithKOL, index: number) => (
         <motion.div
           key={order.id}
           initial={{ opacity: 0, y: 20 }}

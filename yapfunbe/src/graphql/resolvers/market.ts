@@ -17,8 +17,20 @@ import { validationService } from "../../services/validation";
 import { analyticsService } from "../../services/analytics";
 import { notificationService } from "../../services/notification";
 import { errorHandler } from "../../services/error";
+import { marketEvents, MarketEventType } from "../../services/market/events";
 
 const pubsub = new PubSub();
+
+// Subscribe to market events
+marketEvents.subscribe(MarketEventType.MARKET_DEPLOYED, (event) => {
+  pubsub.publish("MARKET_DEPLOYED", {
+    marketDeployed: event.data,
+  });
+});
+
+marketEvents.subscribe(MarketEventType.MARKET_DEPLOYMENT_FAILED, (event) => {
+  console.error("Market deployment failed:", event.data);
+});
 
 // Type guard for user context
 const assertUser = (context: MarketResolverContext) => {
@@ -346,6 +358,12 @@ export const marketResolvers: {
       ) => {
         assertUser(context);
         return pubsub.asyncIterator([`ORDER_UPDATED:${trader}`]);
+      },
+    },
+
+    marketDeployed: {
+      subscribe: () => {
+        return pubsub.asyncIterator(["MARKET_DEPLOYED"]);
       },
     },
   },

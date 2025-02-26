@@ -10,9 +10,24 @@ export enum MarketEventType {
   MARKET_DEPLOYMENT_FAILED = "MARKET_DEPLOYMENT_FAILED",
 }
 
+interface MarketDeploymentData {
+  kolId: string;
+  marketAddress: string;
+  kolName: string;
+  timestamp: string;
+  mindshare: number;
+  rank: string;
+}
+
+interface MarketDeploymentFailedData {
+  kolId: string;
+  error: string;
+  timestamp: number;
+}
+
 interface MarketEvent {
   type: MarketEventType;
-  data: any;
+  data: MarketDeploymentData | MarketDeploymentFailedData | any;
   timestamp: number;
 }
 
@@ -30,6 +45,15 @@ class MarketEventEmitter extends EventEmitter {
     return MarketEventEmitter.instance;
   }
 
+  public emit(
+    event: MarketEventType.MARKET_DEPLOYED,
+    data: MarketDeploymentData
+  ): boolean;
+  public emit(
+    event: MarketEventType.MARKET_DEPLOYMENT_FAILED,
+    data: MarketDeploymentFailedData
+  ): boolean;
+  public emit(event: MarketEventType, data: any): boolean;
   public emit(event: MarketEventType, data: any): boolean {
     const marketEvent: MarketEvent = {
       type: event,

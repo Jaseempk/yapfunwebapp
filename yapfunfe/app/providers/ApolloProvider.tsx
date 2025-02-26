@@ -8,12 +8,12 @@ import {
   HttpLink,
   ApolloLink,
   split,
+  FetchResult,
 } from "@apollo/client";
-import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { getMainDefinition } from "@apollo/client/utilities";
-import { createClient } from "graphql-ws";
 import { onError } from "@apollo/client/link/error";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { Observable } from "@apollo/client/utilities";
 
 // Error handling link
 const errorLink = onError(({ graphQLErrors, networkError }) => {
@@ -100,49 +100,81 @@ const cache = new InMemoryCache({
   },
 });
 
-// WebSocket link
-const wsLink =
-  typeof window !== "undefined"
-    ? new GraphQLWsLink(
-        createClient({
-          url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4000/graphql",
-        })
-      )
-    : null;
-
-// Split link based on operation type
-const splitLink = wsLink
-  ? split(
-      ({ query }) => {
-        const definition = getMainDefinition(query);
-        return (
-          definition.kind === "OperationDefinition" &&
-          definition.operation === "subscription"
-        );
-      },
-      wsLink,
-      from([errorLink, loggingLink, httpLink])
-    )
-  : from([errorLink, loggingLink, httpLink]);
-
-const client = new ApolloClient({
-  link: splitLink,
-  cache,
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: "cache-and-network",
-      nextFetchPolicy: "cache-first",
-      notifyOnNetworkStatusChange: true,
-    },
-    query: {
-      fetchPolicy: "cache-first",
-      errorPolicy: "all",
-      notifyOnNetworkStatusChange: true,
-    },
-  },
-  connectToDevTools: process.env.NODE_ENV === "development",
-});
-
 export function ApolloProvider({ children }: { children: ReactNode }) {
+  const [client, setClient] = useState<ApolloClient<any> | null>(null);
+
+  useEffect(() => {
+    async function initApolloClient() {
+      // Dynamically import graphql-ws to avoid SSR issues
+      const { createClient } = await import("graphql-ws");
+
+      // Create WebSocket client
+      const wsClient = createClient({
+        url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4000/graphql",
+        retryAttempts: 5,
+        connectionParams: {
+          // Add any connection parameters if needed
+        },
+      });
+
+      // Create WebSocket link
+      const wsLink = new ApolloLink((operation) => {
+        return new Observable<FetchResult>((sink) => {
+          return wsClient.subscribe(
+            {
+              ...operation,
+              query: operation.query.loc?.source.body || "",
+            },
+            {
+              next: (data) => sink.next({ data } as FetchResult),
+              complete: () => sink.complete(),
+              error: (err) => sink.error(err),
+            }
+          );
+        });
+      });
+
+      // Split link based on operation type
+      const splitLink = split(
+        ({ query }) => {
+          const definition = getMainDefinition(query);
+          return (
+            definition.kind === "OperationDefinition" &&
+            definition.operation === "subscription"
+          );
+        },
+        wsLink,
+        from([errorLink, loggingLink, httpLink])
+      );
+
+      // Create Apollo Client
+      const newClient = new ApolloClient({
+        link: splitLink,
+        cache,
+        defaultOptions: {
+          watchQuery: {
+            fetchPolicy: "cache-and-network",
+            nextFetchPolicy: "cache-first",
+            notifyOnNetworkStatusChange: true,
+          },
+          query: {
+            fetchPolicy: "cache-first",
+            errorPolicy: "all",
+            notifyOnNetworkStatusChange: true,
+          },
+        },
+        connectToDevTools: process.env.NODE_ENV === "development",
+      });
+
+      setClient(newClient);
+    }
+
+    initApolloClient();
+  }, []);
+
+  if (!client) {
+    return null;
+  }
+
   return <AP client={client}>{children}</AP>;
 }

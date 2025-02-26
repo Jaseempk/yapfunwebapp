@@ -18,7 +18,7 @@ export class ValidationService {
       message: "Address is required",
     },
     {
-      validate: (value) => ethers.isAddress(value),
+      validate: (value) => ethers.utils.isAddress(value),
       message: "Invalid Ethereum address",
     },
   ];

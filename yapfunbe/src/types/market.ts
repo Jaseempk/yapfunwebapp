@@ -65,6 +65,15 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface MarketDeployment {
+  kolId: string;
+  marketAddress: string;
+  kolName: string;
+  timestamp: string;
+  mindshare: number;
+  rank: string;
+}
+
 export interface MarketResolverContext {
   redis: Redis;
   pubsub: PubSub;
@@ -174,6 +183,13 @@ export interface SubscriptionResolvers {
     subscribe: (
       parent: unknown,
       args: { trader: string },
+      context: MarketResolverContext
+    ) => AsyncIterator<unknown>;
+  };
+  marketDeployed: {
+    subscribe: (
+      parent: unknown,
+      args: unknown,
       context: MarketResolverContext
     ) => AsyncIterator<unknown>;
   };

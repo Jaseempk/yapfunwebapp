@@ -10,7 +10,8 @@ import {
 } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
 import { baseSepolia } from "wagmi/chains";
-import { obAbi, obCA } from "@/contractAbi/orderBook";
+import { obAbi } from "@/contractAbi/orderBook";
+import { obFAbi, obfCA } from "@/contractAbi/obFactory";
 import { toast } from "@/components/ui/use-toast";
 
 export interface Order {
@@ -26,7 +27,12 @@ export interface Order {
   status: number; // 0: Open, 1: Filled, 2: Cancelled
 }
 
-export function useOrders() {
+interface KOL {
+  user_id: string;
+  marketAddress?: `0x${string}`;
+}
+
+export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
   const { address } = useAccount();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,43 +44,140 @@ export function useOrders() {
     setError(null);
 
     try {
-      // Get active order count
-      const activeOrderCount = await readContract(config, {
-        abi: obAbi,
-        address: obCA,
-        functionName: "getActiveOrderCount",
-        args: [],
-      });
+      let fetchedOrders: Order[] = [];
 
-      const orderPromises = [];
-      for (let i = 1; i <= Number(activeOrderCount); i++) {
-        orderPromises.push(
-          readContract(config, {
-            abi: obAbi,
-            address: obCA,
-            functionName: "getOrderDetails",
-            args: [i],
-          }).then((details: any) => ({
-            id: i,
-            trader: details[0] as string,
-            positionId: 0, // Default value as it's not returned by contract
-            kolId: details[1].toString(),
-            isLong: details[2] as boolean,
-            mindshareValue: Number(details[3]),
-            quantity: Number(details[4]),
-            filledQuantity: Number(details[5]),
-            status: Number(details[6]),
-            timestamp: Date.now(), // TODO: Get from contract if available
-          }))
+      if (kolId) {
+        // Get market address for specific KOL
+        let marketAddress: `0x${string}`;
+        const kol = kols?.find((k) => k.user_id === kolId);
+
+        if (kol?.marketAddress) {
+          marketAddress = kol.marketAddress;
+        } else {
+          marketAddress = (await readContract(config, {
+            abi: obFAbi,
+            address: obfCA,
+            functionName: "kolIdToMarket",
+            args: [kolId],
+          })) as `0x${string}`;
+        }
+
+        if (marketAddress === "0x0000000000000000000000000000000000000000") {
+          setOrders([]);
+          return;
+        }
+
+        // Get active order count for this market
+        const activeOrderCount = await readContract(config, {
+          abi: obAbi,
+          address: marketAddress,
+          functionName: "getActiveOrderCount",
+          args: [],
+        });
+
+        const orderPromises = [];
+        for (let i = 1; i <= Number(activeOrderCount); i++) {
+          orderPromises.push(
+            readContract(config, {
+              abi: obAbi,
+              address: marketAddress,
+              functionName: "getOrderDetails",
+              args: [i],
+            }).then((details: any) => ({
+              id: i,
+              trader: details[0] as string,
+              positionId: 0,
+              kolId: details[1].toString(),
+              isLong: details[2] as boolean,
+              mindshareValue: Number(details[3]),
+              quantity: Number(details[4]),
+              filledQuantity: Number(details[5]),
+              status: Number(details[6]),
+              timestamp: Date.now(),
+            }))
+          );
+        }
+
+        fetchedOrders = await Promise.all(orderPromises);
+      } else {
+        if (!kols) {
+          console.warn("No KOLs provided for fetching all orders");
+          return;
+        }
+
+        // Fetch orders from all markets
+        const allOrderPromises = await Promise.all(
+          kols.map(async (kol) => {
+            try {
+              let marketAddress: `0x${string}`;
+
+              if (kol.marketAddress) {
+                marketAddress = kol.marketAddress;
+              } else {
+                marketAddress = (await readContract(config, {
+                  abi: obFAbi,
+                  address: obfCA,
+                  functionName: "kolIdToMarket",
+                  args: [kol.user_id],
+                })) as `0x${string}`;
+              }
+
+              if (
+                marketAddress === "0x0000000000000000000000000000000000000000"
+              ) {
+                return [];
+              }
+
+              const activeOrderCount = await readContract(config, {
+                abi: obAbi,
+                address: marketAddress,
+                functionName: "getActiveOrderCount",
+                args: [],
+              });
+
+              const marketOrders = await Promise.all(
+                Array.from({ length: Number(activeOrderCount) }, (_, i) =>
+                  readContract(config, {
+                    abi: obAbi,
+                    address: marketAddress,
+                    functionName: "getOrderDetails",
+                    args: [i + 1],
+                  }).then((details: any) => ({
+                    id: i + 1,
+                    trader: details[0] as string,
+                    positionId: 0,
+                    kolId: details[1].toString(),
+                    isLong: details[2] as boolean,
+                    mindshareValue: Number(details[3]),
+                    quantity: Number(details[4]),
+                    filledQuantity: Number(details[5]),
+                    status: Number(details[6]),
+                    timestamp: Date.now(),
+                  }))
+                )
+              );
+
+              return marketOrders;
+            } catch (err) {
+              console.error(
+                `Error fetching orders for KOL ${kol.user_id}:`,
+                err
+              );
+              return [];
+            }
+          })
         );
-      }
 
-      const fetchedOrders = await Promise.all(orderPromises);
+        fetchedOrders = allOrderPromises.flat();
+      }
       // Filter orders belonging to the current user
-      const userOrders = fetchedOrders.filter(
-        (order) => order.trader.toLowerCase() === address.toLowerCase()
-      );
-      setOrders(userOrders);
+      const filteredOrders = fetchedOrders.filter((order) => {
+        if (userAddress) {
+          return order.trader.toLowerCase() === userAddress.toLowerCase();
+        }
+        return order.trader.toLowerCase() === address?.toLowerCase();
+      });
+      setOrders(filteredOrders);
     } catch (err) {
       console.error("Error fetching orders:", err);
       setError("Failed to fetch orders");
@@ -86,15 +189,15 @@ export function useOrders() {
     } finally {
       setLoading(false);
     }
-  }, [address]);
+  }, [address, kolId, kols]);
 
-  const cancelOrder = async (orderId: number) => {
+  const cancelOrder = async (orderId: number, marketAddress: `0x${string}`) => {
     if (!address) return;
 
     try {
       const { request } = await simulateContract(config, {
         abi: obAbi,
-        address: obCA,
+        address: marketAddress,
         functionName: "cancelOrder",
         args: [orderId],
       });

@@ -48,7 +48,7 @@ export interface KOL {
   address: string;
   marketAddress: string | null;
   mindshare: number;
-  rank: number;
+  rank: string;
   volume: number;
   trades: number;
   pnl: number;
@@ -66,7 +66,7 @@ export interface KOL {
 // KOL performance statistics
 export interface KOLStats {
   mindshare: number;
-  rank: number;
+  rank: string;
   volume: number;
   trades: number;
   pnl: number;

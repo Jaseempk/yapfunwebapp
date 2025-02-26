@@ -132,6 +132,8 @@ interface MarketDetailProps {
     volume: string;
     participants: number;
     tweetCount: number;
+    kolId: string;
+    marketAddress?: `0x${string}`;
   };
 }
 
@@ -334,9 +336,13 @@ export default function MarketDetail({
     setError(null);
 
     try {
+      if (!kol.marketAddress) {
+        throw new Error("No market address found for this KOL");
+      }
+
       const { request } = await simulateContract(config, {
         abi: obAbi,
-        address: obCA,
+        address: kol.marketAddress,
         functionName: "createOrder",
         args: [activeTab === "long", parseUnits(amount, 6)],
       });

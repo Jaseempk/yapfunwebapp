@@ -24,6 +24,8 @@ interface KOLCardProps {
   participants: number;
   tweetCount: number;
   isTop?: boolean;
+  kolId: string;
+  marketAddress?: `0x${string}`;
 }
 
 export default function KOLCard({
@@ -37,6 +39,8 @@ export default function KOLCard({
   participants,
   tweetCount,
   isTop = false,
+  kolId,
+  marketAddress,
 }: KOLCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -146,6 +150,8 @@ export default function KOLCard({
           volume,
           participants,
           tweetCount,
+          kolId,
+          marketAddress,
         }}
       />
     </>

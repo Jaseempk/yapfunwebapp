@@ -10,15 +10,10 @@ import {
 import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
 import { errorHandler } from "./error";
 import { getMarketDeploymentService } from "./market/deployment";
-import { ethers } from "ethers";
-import { orderBookAbi } from "../abi/orderBook";
+import { subgraphService } from "./subgraph";
 
 export class KOLService {
-  private provider: ethers.providers.JsonRpcProvider;
-
-  constructor() {
-    this.provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-  }
+  constructor() {}
 
   private readonly baseUrl =
     process.env.KAITO_API_URL || "https://hub.kaito.ai/api/v1/gateway/ai";
@@ -34,48 +29,62 @@ export class KOLService {
     );
   }
 
-  private async transformKaitoKOL(kaitoKOL: KaitoKOL): Promise<KOL> {
-    const marketDeploymentService = getMarketDeploymentService();
-    const marketAddress = await marketDeploymentService.getMarketAddress(
-      kaitoKOL.user_id
-    );
+  async transformKaitoKOL(kaitoKOL: KaitoKOL): Promise<KOL> {
+    try {
+      const marketDeploymentService = getMarketDeploymentService();
+      let marketAddress = "";
+      let volume = 0;
+      let trades = 0;
+      let pnl = 0;
 
-    let volume = 0;
-    if (marketAddress) {
       try {
-        const orderBook = new ethers.Contract(
-          marketAddress,
-          orderBookAbi,
-          this.provider
+        marketAddress = await marketDeploymentService.getMarketAddress(
+          kaitoKOL.user_id
         );
-        const marketVolume = await orderBook.marketVolume();
-        volume = parseFloat(ethers.utils.formatUnits(marketVolume, 6)); // Assuming USDC decimals
-      } catch (error) {
-        console.error(
-          `Error fetching volume for KOL ${kaitoKOL.user_id}:`,
-          error
-        );
-      }
-    }
 
-    return {
-      address: "", // Will be populated from contract data
-      marketAddress,
-      mindshare: kaitoKOL.mindshare,
-      rank: parseInt(kaitoKOL.rank),
-      volume,
-      trades: 0, // Will be populated from contract data
-      pnl: 0, // Will be populated from contract data
-      followers: kaitoKOL.follower_count,
-      following: kaitoKOL.following_count,
-      user_id: kaitoKOL.user_id,
-      name: kaitoKOL.name,
-      username: kaitoKOL.username,
-      icon: kaitoKOL.icon,
-      bio: kaitoKOL.bio,
-      twitter_url: kaitoKOL.twitter_user_url,
-      last_7_day_mention_count: kaitoKOL.last_7_day_mention_count,
-    };
+        if (marketAddress) {
+          // Get all market data in a single call
+          const positions = await subgraphService.getMarketPositions(
+            marketAddress
+          );
+          volume = await subgraphService.getMarketVolume(marketAddress);
+          trades = positions.length;
+          pnl = positions.reduce((total, pos) => total + (pos.pnl || 0), 0);
+        }
+      } catch (error) {
+        // Market might not exist yet, which is fine
+        if (
+          !(error instanceof Error && error.message.includes("No market found"))
+        ) {
+          console.error("Error fetching market data:", error);
+        }
+      }
+
+      // Transform data
+      return {
+        address: "", // Will be populated from contract data
+        marketAddress,
+        mindshare: Number(kaitoKOL.mindshare || 0),
+        rank: kaitoKOL.rank || "0",
+        volume: Number(volume || 0),
+        trades: Number(trades || 0),
+        pnl: Number(pnl || 0),
+        followers: Number(kaitoKOL.follower_count || 0),
+        following: Number(kaitoKOL.following_count || 0),
+        user_id: kaitoKOL.user_id,
+        name: kaitoKOL.name || kaitoKOL.username || kaitoKOL.user_id,
+        username: kaitoKOL.username || "",
+        icon: kaitoKOL.icon || "",
+        bio: kaitoKOL.bio || "",
+        twitter_url: kaitoKOL.twitter_user_url || "",
+        last_7_day_mention_count: Number(
+          kaitoKOL.last_7_day_mention_count || 0
+        ),
+      };
+    } catch (error) {
+      console.error("Error transforming KOL data:", error);
+      throw errorHandler.handle(error);
+    }
   }
 
   async getKOLs(limit?: number, offset?: number): Promise<KOL[]> {
@@ -141,19 +150,22 @@ export class KOLService {
     offset?: number
   ): Promise<KOLTrade[]> {
     try {
-      // TODO: Implement actual trade fetching from contract/subgraph
-      const mockTrades: KOLTrade[] = [
-        {
-          id: "1",
-          timestamp: new Date().toISOString(),
-          type: "BUY",
-          amount: 100,
-          price: 50000,
-          pnl: 1000,
-        },
-      ];
+      const kol = await this.getKOL(id);
+      if (!kol || !kol.marketAddress) {
+        return [];
+      }
 
-      let trades = mockTrades;
+      const positions = await subgraphService.getMarketPositions(
+        kol.marketAddress
+      );
+      let trades = positions.map((position) => ({
+        id: position.id,
+        timestamp: position.createdAt,
+        type: position.type === "LONG" ? "BUY" : "SELL",
+        amount: position.amount,
+        price: position.entryPrice,
+        pnl: position.pnl || 0,
+      }));
       if (typeof offset === "number") {
         trades = trades.slice(offset);
       }

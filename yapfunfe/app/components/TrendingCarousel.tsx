@@ -17,54 +17,8 @@ import {
 } from "framer-motion";
 import { useMediaQuery } from "../hooks/use-media-query";
 
-interface TrendingItem {
-  id: number;
-  name: string;
-  handle: string;
-  avatar: string;
-  change: number;
-  volume: string;
-  participants: number;
-}
-
-const mockTrending: TrendingItem[] = [
-  {
-    id: 1,
-    name: "aixbt",
-    handle: "@aixbt_agent",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    change: 12.5,
-    volume: "$24.5K",
-    participants: 156,
-  },
-  {
-    id: 2,
-    name: "vitalik.eth",
-    handle: "@VitalikButerin",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    change: 8.2,
-    volume: "$18.2K",
-    participants: 89,
-  },
-  {
-    id: 3,
-    name: "mert",
-    handle: "@mert_eth",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    change: -5.3,
-    volume: "$12.1K",
-    participants: 67,
-  },
-  {
-    id: 4,
-    name: "nobi.eth",
-    handle: "@nobi",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    change: -5.3,
-    volume: "$12.1K",
-    participants: 67,
-  },
-];
+import { useKOLData } from "../hooks/useKOLData";
+import KOLCard from "./KOLCard";
 
 export default function TrendingCarousel() {
   const [page, setPage] = React.useState(0);
@@ -73,7 +27,23 @@ export default function TrendingCarousel() {
   const controls = useAnimation();
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.ceil(mockTrending.length / itemsPerPage);
+  const { kols: allKols, loading } = useKOLData({
+    timeFilter: "24h",
+    topN: 10,
+  });
+
+  // Sort KOLs by volume and take top 4
+  const kols = React.useMemo(() => {
+    if (!allKols) return [];
+    return [...allKols]
+      .sort((a, b) => {
+        const volumeA = Number(a.volume.replace(/[^0-9.]/g, ""));
+        const volumeB = Number(b.volume.replace(/[^0-9.]/g, ""));
+        return volumeB - volumeA;
+      })
+      .slice(0, 4);
+  }, [allKols]);
+  const totalPages = Math.ceil((kols?.length || 0) / itemsPerPage);
   const pageWidth = containerRef.current?.offsetWidth || 0;
 
   // Handle horizontal scroll with trackpad
@@ -164,12 +134,10 @@ export default function TrendingCarousel() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
         <div className="flex items-center space-x-2">
           <Trending className="w-5 h-5 text-green-500" />
-          <h2 className="text-lg font-semibold">Trending Now</h2>
+          <h2 className="text-lg font-semibold">Most Traded</h2>
         </div>
         <div className="flex items-center gap-4 sm:ml-auto">
-          <div className="flex space-x-2">
-
-          </div>
+          <div className="flex space-x-2"></div>
           <div className="flex items-center space-x-1 sm:hidden">
             {Array.from({ length: totalPages }).map((_, i) => (
               <div
@@ -196,46 +164,43 @@ export default function TrendingCarousel() {
           className="flex gap-4 scroll-smooth will-change-transform"
           style={{ touchAction: "pan-y" }}
         >
-          {mockTrending.map((item) => (
-            <Card
-              key={item.id}
-              className="p-4 hover:border-green-500/50 transition-all cursor-pointer rounded-xl flex-shrink-0 bg-background/50 backdrop-blur-sm hover:bg-background/70"
-              style={{ width: isDesktop ? `${100 / 3}%` : "calc(100% - 2rem)" }}
-            >
-              <div className="flex items-start space-x-3 sm:space-x-4">
-                <img
-                  src={item.avatar || "/placeholder.svg"}
-                  alt=""
-                  className="w-10 h-10 rounded-full ring-2 ring-green-500/20"
-                  loading="lazy"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="truncate">
-                      <h3 className="font-medium truncate">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {item.handle}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-sm font-medium whitespace-nowrap ${
-                        item.change >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {item.change >= 0 ? "+" : ""}
-                      {item.change}%
-                    </span>
+          {loading ? (
+            <div className="flex gap-4">
+              {Array(itemsPerPage)
+                .fill(0)
+                .map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-shrink-0"
+                    style={{
+                      width: isDesktop ? `${100 / 3}%` : "calc(100% - 2rem)",
+                    }}
+                  >
+                    <Card className="p-4 animate-pulse bg-background/50 backdrop-blur-sm rounded-xl">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-10 h-10 rounded-full bg-gray-600" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-600 rounded w-3/4" />
+                          <div className="h-3 bg-gray-600 rounded w-1/2" />
+                        </div>
+                      </div>
+                    </Card>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-xs sm:text-sm text-muted-foreground">
-                    <span className="truncate">Vol: {item.volume}</span>
-                    <span className="whitespace-nowrap">
-                      {item.participants} traders
-                    </span>
-                  </div>
-                </div>
+                ))}
+            </div>
+          ) : (
+            kols?.map((kol) => (
+              <div
+                key={kol.user_id}
+                className="flex-shrink-0"
+                style={{
+                  width: isDesktop ? `${100 / 3}%` : "calc(100% - 2rem)",
+                }}
+              >
+                <KOLCard {...kol} kolId={kol.user_id} />
               </div>
-            </Card>
-          ))}
+            ))
+          )}
         </motion.div>
       </div>
     </div>

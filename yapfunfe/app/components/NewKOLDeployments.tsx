@@ -4,74 +4,47 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { RocketIcon, ExternalLink, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { gql, useSubscription } from "@apollo/client";
+
+const MARKET_DEPLOYED_SUBSCRIPTION = gql`
+  subscription OnMarketDeployed {
+    marketDeployed {
+      kolId
+      marketAddress
+      kolName
+      timestamp
+      mindshare
+      rank
+    }
+  }
+`;
 
 interface KOLDeployment {
-  id: string;
-  name: string;
-  handle: string;
-  avatar: string;
+  kolId: string;
+  marketAddress: string;
+  kolName: string;
   timestamp: string;
   mindshare: number;
-  rank: number;
+  rank: string;
 }
 
-// This would come from your WebSocket connection in production
-const mockDeployments: KOLDeployment[] = [
-  {
-    id: "1",
-    name: "cryptoWizard",
-    handle: "@crypto_wizard",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    timestamp: new Date().toISOString(),
-    mindshare: 15.2,
-    rank: 76,
-  },
-  {
-    id: "2",
-    name: "defiQueen",
-    handle: "@defi_queen",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    mindshare: 12.8,
-    rank: 82,
-  },
-  {
-    id: "3",
-    name: "vitalik.eth",
-    handle: "@vitalikbuterin",
-    avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-    timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    mindshare: 12.8,
-    rank: 82,
-  },
-];
-
 export default function NewKOLDeployments() {
-  const [deployments, setDeployments] = React.useState(mockDeployments);
+  const [deployments, setDeployments] = React.useState<KOLDeployment[]>([]);
+
+  const { data } = useSubscription(MARKET_DEPLOYED_SUBSCRIPTION, {
+    onData: ({ data }) => {
+      if (data?.data?.marketDeployed) {
+        setDeployments((prev) => [
+          data.data.marketDeployed,
+          ...prev.slice(0, 2),
+        ]);
+      }
+    },
+  });
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = React.useState(false);
   const [startX, setStartX] = React.useState(0);
   const [scrollLeft, setScrollLeft] = React.useState(0);
-
-  // In production, this would be your WebSocket connection
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate new deployment every 10 seconds
-      const newDeployment: KOLDeployment = {
-        id: Math.random().toString(),
-        name: `kol${Math.floor(Math.random() * 1000)}`,
-        handle: `@kol${Math.floor(Math.random() * 1000)}`,
-        avatar: "https://v0.dev/placeholder.svg?height=40&width=40",
-        timestamp: new Date().toISOString(),
-        mindshare: Math.random() * 20 + 10,
-        rank: Math.floor(Math.random() * 20 + 70),
-      };
-      setDeployments((prev) => [newDeployment, ...prev.slice(0, 1)]);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Handle horizontal scroll with trackpad
   const handleWheel = (e: WheelEvent) => {
@@ -109,7 +82,7 @@ export default function NewKOLDeployments() {
           <AnimatePresence initial={false}>
             {deployments.map((deployment) => (
               <motion.div
-                key={deployment.id}
+                key={`${deployment.kolId}-${deployment.timestamp}`}
                 initial={{ opacity: 0, y: -20, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: "auto" }}
                 exit={{ opacity: 0, y: 20, height: 0 }}
@@ -119,12 +92,9 @@ export default function NewKOLDeployments() {
                 <Card className="p-2 sm:p-3 hover:border-green-500/50 transition-all cursor-pointer rounded-xl bg-gradient-to-r from-background/50 to-background/50 hover:from-green-950/30 hover:to-background/50">
                   <div className="flex items-start space-x-2 sm:space-x-4">
                     <div className="relative">
-                      <img
-                        src={deployment.avatar}
-                        alt=""
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-green-500/20"
-                        loading="lazy"
-                      />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-green-500/20 bg-green-500/10 flex items-center justify-center">
+                        <RocketIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
+                      </div>
                       <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 sm:p-1">
                         <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
                       </div>
@@ -134,12 +104,10 @@ export default function NewKOLDeployments() {
                         <div className="truncate">
                           <div className="flex items-center space-x-1">
                             <h3 className="text-sm sm:text-base font-medium truncate">
-                              {deployment.name}
+                              {deployment.kolName}
                             </h3>
                             <a
-                              href={`https://twitter.com/${deployment.handle.slice(
-                                1
-                              )}`}
+                              href={`https://basescan.org/address/${deployment.marketAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-muted-foreground hover:text-primary ml-1"
@@ -148,7 +116,8 @@ export default function NewKOLDeployments() {
                             </a>
                           </div>
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {deployment.handle}
+                            Market: {deployment.marketAddress.slice(0, 6)}...
+                            {deployment.marketAddress.slice(-4)}
                           </p>
                         </div>
                         <div className="text-right">

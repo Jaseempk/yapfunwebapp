@@ -30,16 +30,41 @@ interface SubgraphPosition {
   closedAt: string | null;
 }
 
-export class SubgraphService {
-  private readonly endpoint: string;
+interface SubgraphKolMarket {
+  marketAddress: string;
+}
 
-  constructor(endpoint: string) {
-    this.endpoint = endpoint;
+interface SubgraphMarketVolume {
+  totalVolume: string;
+}
+
+interface SubgraphNewMarket {
+  id: string;
+  kolId: string;
+}
+
+export class SubgraphService {
+  private readonly orderBookEndpoint: string;
+  private readonly oracleEndpoint: string;
+  private readonly factoryEndpoint: string;
+
+  constructor(
+    orderBookEndpoint: string,
+    oracleEndpoint: string,
+    factoryEndpoint: string
+  ) {
+    this.orderBookEndpoint = orderBookEndpoint;
+    this.oracleEndpoint = oracleEndpoint;
+    this.factoryEndpoint = factoryEndpoint;
   }
 
-  private async query(query: string, variables: Record<string, any> = {}) {
+  private async query<T>(
+    endpoint: string,
+    query: string,
+    variables: Record<string, any> = {}
+  ): Promise<T> {
     try {
-      const response = await fetch(this.endpoint, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -54,16 +79,12 @@ export class SubgraphService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = (await response.json()) as { data?: any; errors?: any[] };
+      const data = (await response.json()) as { data?: T; errors?: any[] };
       if (data.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
       }
 
-      return data.data as {
-        markets?: SubgraphMarket[];
-        market?: SubgraphMarket;
-        positions?: SubgraphPosition[];
-      };
+      return data.data as T;
     } catch (error) {
       console.error("Subgraph query error:", error);
       throw error;
@@ -90,7 +111,10 @@ export class SubgraphService {
       }
     `;
 
-    const data = await this.query(query);
+    const data = await this.query<{ markets: SubgraphMarket[] }>(
+      this.orderBookEndpoint,
+      query
+    );
     return (data.markets || []).map((market) => this.transformMarket(market));
   }
 
@@ -114,7 +138,11 @@ export class SubgraphService {
       }
     `;
 
-    const data = await this.query(query, { id });
+    const data = await this.query<{ market: SubgraphMarket | null }>(
+      this.orderBookEndpoint,
+      query,
+      { id }
+    );
     return data.market ? this.transformMarket(data.market) : null;
   }
 
@@ -138,7 +166,11 @@ export class SubgraphService {
       }
     `;
 
-    const data = await this.query(query, { trader });
+    const data = await this.query<{ positions: SubgraphPosition[] }>(
+      this.orderBookEndpoint,
+      query,
+      { trader }
+    );
     return (data.positions || []).map((position) =>
       this.transformPosition(position)
     );
@@ -164,10 +196,71 @@ export class SubgraphService {
       }
     `;
 
-    const data = await this.query(query, { marketId });
+    const data = await this.query<{ positions: SubgraphPosition[] }>(
+      this.orderBookEndpoint,
+      query,
+      { marketId }
+    );
     return (data.positions || []).map((position) =>
       this.transformPosition(position)
     );
+  }
+
+  async checkMarketExists(kolId: string): Promise<string | null> {
+    const query = `
+      query CheckMarket($kolId: String!) {
+        kolMarkets(where: { kolId: $kolId }) {
+          marketAddress
+        }
+      }
+    `;
+
+    const data = await this.query<{ kolMarkets: SubgraphKolMarket[] }>(
+      this.oracleEndpoint,
+      query,
+      { kolId }
+    );
+    return data.kolMarkets?.[0]?.marketAddress || null;
+  }
+
+  async getMarketVolume(marketAddress: string): Promise<number> {
+    const query = `
+      query GetVolume($marketAddress: String!) {
+        market(id: $marketAddress) {
+          totalVolume
+        }
+      }
+    `;
+
+    const data = await this.query<{ market: SubgraphMarketVolume | null }>(
+      this.orderBookEndpoint,
+      query,
+      { marketAddress }
+    );
+    return data.market ? parseFloat(data.market.totalVolume) : 0;
+  }
+
+  async getNewMarketDeployments(
+    fromTimestamp: number
+  ): Promise<Array<{ marketAddress: string; kolId: string }>> {
+    const query = `
+      query GetNewMarkets($timestamp: Int!) {
+        markets(where: { createdAt_gt: $timestamp }) {
+          id
+          kolId
+        }
+      }
+    `;
+
+    const data = await this.query<{ markets: SubgraphNewMarket[] }>(
+      this.factoryEndpoint,
+      query,
+      { timestamp: fromTimestamp }
+    );
+    return (data.markets || []).map((market) => ({
+      marketAddress: market.id,
+      kolId: market.kolId,
+    }));
   }
 
   private transformMarket(market: SubgraphMarket): Market {
@@ -205,8 +298,12 @@ export class SubgraphService {
   }
 }
 
-// Initialize with the subgraph endpoint from environment variable
+// Initialize with the subgraph endpoints from environment variables
 export const subgraphService = new SubgraphService(
-  process.env.GRAPH_API_URL ||
-    "https://api.thegraph.com/subgraphs/name/your-subgraph"
+  process.env.ORDERBOOK_SUBGRAPH_URL ||
+    "https://api.thegraph.com/subgraphs/name/your-orderbook-subgraph",
+  process.env.ORACLE_SUBGRAPH_URL ||
+    "https://api.thegraph.com/subgraphs/name/your-oracle-subgraph",
+  process.env.FACTORY_SUBGRAPH_URL ||
+    "https://api.thegraph.com/subgraphs/name/your-factory-subgraph"
 );

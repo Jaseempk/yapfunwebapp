@@ -9,6 +9,7 @@ import { useOrders } from "../hooks/useOrders";
 import { useBalances } from "../hooks/useBalances";
 import { useDeposit } from "../hooks/useDeposit";
 import { usePnL } from "../hooks/usePnL";
+import { useKOLData } from "../hooks/useKOLData";
 import DepositModal from "./DepositModal";
 import WithdrawModal from "./WithdrawModal";
 import { motion } from "framer-motion";
@@ -23,7 +24,8 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
   const isOwnProfile = !userAddress || userAddress === address;
   const targetAddress = userAddress || address;
 
-  const { orders } = useOrders();
+  const { kols } = useKOLData({ timeFilter: "7d" });
+  const { orders } = useOrders(undefined, targetAddress, kols);
   const { inHouseBalance, userBalance, refreshBalances } = useBalances();
   const openOrdersCount = orders.filter((order) => order.status === 0).length;
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
@@ -167,7 +169,7 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
         <h2 className="text-2xl font-['Orbitron'] mb-6 text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
           {isOwnProfile ? "Your Positions" : "Positions"}
         </h2>
-        <PositionsContent />
+        <PositionsContent userAddress={targetAddress} />
       </motion.div>
 
       {isOwnProfile && (

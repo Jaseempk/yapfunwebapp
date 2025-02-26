@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery, gql } from "@apollo/client";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { readContract } from "@wagmi/core";
+import { config } from "../providers/Web3Providers";
+import { obFAbi, obfCA } from "@/contractAbi/obFactory";
 
 // GraphQL query for fetching KOL data
 const GET_TOP_KOLS = gql`
@@ -61,6 +64,7 @@ export interface KOLData {
   tweetCount: number;
   isTop?: boolean;
   user_id: string;
+  marketAddress?: `0x${string}`;
 }
 
 interface UseKOLDataProps {
@@ -102,6 +106,49 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
     errorPolicy: "all", // Return partial data if available
   });
 
+  const [marketAddresses, setMarketAddresses] = useState<
+    Record<string, `0x${string}`>
+  >({});
+
+  // Fetch market addresses for KOLs
+  useEffect(() => {
+    const fetchMarketAddresses = async () => {
+      if (!data?.topKOLs?.kols) return;
+
+      const addresses = await Promise.all(
+        data.topKOLs.kols.map(async (kol) => {
+          try {
+            const address = await readContract(config, {
+              abi: obFAbi,
+              address: obfCA,
+              functionName: "kolIdToMarket",
+              args: [kol.user_id],
+            });
+            return [kol.user_id, address] as [string, `0x${string}`];
+          } catch (err) {
+            console.error(
+              `Error fetching market address for KOL ${kol.user_id}:`,
+              err
+            );
+            return [kol.user_id, null];
+          }
+        })
+      );
+
+      setMarketAddresses(
+        Object.fromEntries(
+          addresses.filter(
+            ([_, address]) =>
+              address &&
+              address !== "0x0000000000000000000000000000000000000000"
+          ) as [string, `0x${string}`][]
+        )
+      );
+    };
+
+    fetchMarketAddresses();
+  }, [data]);
+
   const formattedData = useMemo(() => {
     if (!data?.topKOLs?.kols) return [];
 
@@ -116,10 +163,11 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
         participants: kol.trades || 150,
         tweetCount: kol.last_7_day_mention_count || 0,
         performance: "neutral", // Can be enhanced with historical data comparison
-        user_id: kol.user_id, // Preserve for contract interaction
+        user_id: kol.user_id,
+        marketAddress: marketAddresses[kol.user_id],
       })
     );
-  }, [data]);
+  }, [data, marketAddresses]);
 
   return {
     kols: formattedData,

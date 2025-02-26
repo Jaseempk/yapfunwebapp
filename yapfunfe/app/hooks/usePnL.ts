@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useOrders } from "./useOrders";
 import { readContract } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
-import { obAbi, obCA } from "@/contractAbi/orderBook";
+import { obAbi } from "@/contractAbi/orderBook";
+import { obFAbi, obfCA } from "@/contractAbi/obFactory";
 
 export function usePnL() {
   const { orders } = useOrders();
@@ -28,11 +29,26 @@ export function usePnL() {
         for (const order of orders) {
           if (order.status === 1) {
             // Only count completed orders
-            // Get current mindshare value
+            // Get market address for this KOL
+            const marketAddress = (await readContract(config, {
+              abi: obFAbi,
+              address: obfCA,
+              functionName: "kolIdToMarket",
+              args: [order.kolId],
+            })) as `0x${string}`;
+
+            if (
+              marketAddress === "0x0000000000000000000000000000000000000000"
+            ) {
+              console.error(`No market found for KOL ${order.kolId}`);
+              continue;
+            }
+
+            // Get current mindshare value from the specific market
             const currentMindshare = Number(
               await readContract(config, {
                 abi: obAbi,
-                address: obCA,
+                address: marketAddress,
                 functionName: "_getOraclePrice",
                 args: [],
               })

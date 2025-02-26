@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTradeVolume } from "../hooks/useTradeVolume";
 import TimeFilter from "./TimeFilter";
 import KOLCard from "./KOLCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,16 +67,16 @@ export default function RankingsContent() {
               Mindshare
             </TabsTrigger>
             <TabsTrigger
+              value="volume"
+              className="flex-1 sm:flex-none rounded-xl"
+            >
+              Volume
+            </TabsTrigger>
+            <TabsTrigger
               value="engagement"
               className="flex-1 sm:flex-none rounded-xl"
             >
               Engagement
-            </TabsTrigger>
-            <TabsTrigger
-              value="growth"
-              className="flex-1 sm:flex-none rounded-xl"
-            >
-              Growth
             </TabsTrigger>
           </TabsList>
 
@@ -91,8 +92,40 @@ export default function RankingsContent() {
                     .map((_, i) => <KOLCardSkeleton key={i} />)
                 : // Show all KOLs
                   kols.map((kol: KOLData) => (
-                    <KOLCard key={kol.user_id} {...kol} isTop={kol.rank <= 3} />
+                    <KOLCard
+                      key={kol.user_id}
+                      {...kol}
+                      kolId={kol.user_id}
+                      isTop={kol.rank <= 3}
+                    />
                   ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent
+            value="volume"
+            className="mt-3 focus-visible:outline-none focus-visible:ring-0"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {loading
+                ? Array(6)
+                    .fill(0)
+                    .map((_, i) => <KOLCardSkeleton key={i} />)
+                : // Sort KOLs by trade volume
+                  [...kols]
+                    .sort((a, b) => {
+                      const volumeA = Number(a.volume.replace(/[^0-9.]/g, ""));
+                      const volumeB = Number(b.volume.replace(/[^0-9.]/g, ""));
+                      return volumeB - volumeA;
+                    })
+                    .map((kol: KOLData) => (
+                      <KOLCard
+                        key={kol.user_id}
+                        {...kol}
+                        kolId={kol.user_id}
+                        isTop={kol.rank <= 3}
+                      />
+                    ))}
             </div>
           </TabsContent>
 
@@ -102,15 +135,6 @@ export default function RankingsContent() {
           >
             <div className="text-center py-4 text-muted-foreground">
               Engagement metrics coming soon
-            </div>
-          </TabsContent>
-
-          <TabsContent
-            value="growth"
-            className="focus-visible:outline-none focus-visible:ring-0"
-          >
-            <div className="text-center py-4 text-muted-foreground">
-              Growth metrics coming soon
             </div>
           </TabsContent>
         </Tabs>

@@ -7,6 +7,7 @@ import http from "http";
 import cors from "cors";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { PubSub } from "graphql-subscriptions";
+import { ethers } from "ethers";
 import dotenv from "dotenv";
 
 import { marketTypeDefs } from "./graphql/schemas/market";
@@ -19,11 +20,18 @@ import { cacheUtils, redis } from "./config/cache";
 import { errorHandler } from "./services/error";
 import { analyticsService } from "./services/analytics";
 import { initializeWebSocket } from "./services/websocket";
-import { kolOrderbookService } from "./services/market";
+import {
+  kolOrderbookService,
+  initializeMarketServices,
+} from "./services/market";
+import { kolService } from "./services/kol";
+import { KOL } from "./types/kol";
+import { marketEvents, MarketEventType } from "./services/market/events";
 import {
   initializeMarketDeploymentService,
   getMarketDeploymentService,
 } from "./services/market/deployment";
+import { yapOracleAbi, yapOracleCA } from "./abi/yapOracle";
 
 // Load environment variables
 dotenv.config();
@@ -45,6 +53,31 @@ interface Context {
 
 // Initialize services
 const pubsub = new PubSub();
+
+// Initialize Oracle contract
+const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+const oracleContract = new ethers.Contract(yapOracleCA, yapOracleAbi, provider);
+
+// Listen for KOLDataUpdated events
+oracleContract.on(
+  "KOLDataUpdated",
+  async (kolId, rank, mindshareScore, timestamp) => {
+    try {
+      console.log(`KOL data updated for ${kolId}`);
+
+      // Get KOL data from Kaito API
+      const kols = await kolService.getKOLs();
+
+      // Check and deploy markets for any new KOLs
+      const marketDeploymentService = getMarketDeploymentService();
+      const kolIds = kols.map((kol) => kol.user_id);
+      await marketDeploymentService.checkAndDeployMarkets(kolIds);
+    } catch (error) {
+      console.error("Error handling KOLDataUpdated event:", error);
+      errorHandler.handle(error);
+    }
+  }
+);
 
 // Create context
 const createContext = async ({
@@ -183,19 +216,45 @@ async function startServer() {
 
   // Initialize services
   try {
+    if (!process.env.DEPLOYER_PRIVATE_KEY || !process.env.RPC_URL) {
+      throw new Error(
+        "DEPLOYER_PRIVATE_KEY and RPC_URL environment variables are required"
+      );
+    }
+
     // Initialize market deployment service
     const marketDeploymentService = initializeMarketDeploymentService(
-      process.env.DEPLOYER_PRIVATE_KEY!
+      process.env.DEPLOYER_PRIVATE_KEY
     );
-    await marketDeploymentService.setupEventListeners();
-    console.log("🚀 Market deployment service initialized");
+
+    // Initialize market services (includes event listeners and KOL data handling)
+    await initializeMarketServices();
+    console.log("🚀 Market services initialized");
 
     // Initialize KOL orderbook automation
     await kolOrderbookService.initialize();
     console.log("🤖 KOL orderbook automation service initialized");
 
-    // Initial market check and deployment
-    await marketDeploymentService.checkAndDeployMarkets();
+    // Get initial KOL data and deploy markets if needed
+    const kols = await kolService.getKOLs();
+    const kolIds = kols.map((kol: KOL) => kol.user_id);
+    await marketDeploymentService.checkAndDeployMarkets(kolIds);
+
+    // Setup event listener for market deployments
+    marketDeploymentService.setupEventListeners(async (event) => {
+      console.log("Market initialised:", event);
+      const kolId = event.args.kolId;
+      const kol = await kolService.getKOL(kolId);
+      // Emit market deployment event for frontend
+      marketEvents.emit(MarketEventType.MARKET_DEPLOYED, {
+        kolId,
+        marketAddress: event.args.marketAddy,
+        kolName: kol?.name || kolId,
+        timestamp: new Date().toISOString(),
+        mindshare: kol?.mindshare || 0,
+        rank: kol?.rank || "0",
+      });
+    });
     console.log("✅ Initial market check completed");
   } catch (error) {
     console.error("Failed to initialize services:", error);

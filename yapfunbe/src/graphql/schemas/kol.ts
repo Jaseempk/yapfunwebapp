@@ -114,6 +114,36 @@ export const kolTypeDefs = `#graphql
     ALL_TIME
   }
 
+  """
+  Market deployment event data
+  """
+  type MarketDeploymentEvent {
+    "KOL identifier"
+    kolId: String!
+    
+    "Deployed market contract address"
+    marketAddress: String!
+    
+    "KOL display name"
+    kolName: String!
+    
+    "Deployment timestamp"
+    timestamp: String!
+    
+    "Current mindshare score"
+    mindshare: Float!
+    
+    "Current rank"
+    rank: String!
+  }
+
+  extend type Subscription {
+    """
+    Subscribe to KOL market deployment events
+    """
+    kolMarketDeployed: MarketDeploymentEvent!
+  }
+
   extend type Query {
     """
     Get paginated list of KOLs
