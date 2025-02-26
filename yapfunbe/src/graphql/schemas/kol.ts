@@ -5,6 +5,9 @@ export const kolTypeDefs = `#graphql
   type KOL {
     "Twitter user ID (used as unique identifier for contract interaction)"
     address: String!
+
+    "Market contract address for trading"
+    marketAddress: String
     
     "Mindshare score indicating influence"
     mindshare: Float!

@@ -9,8 +9,17 @@ import {
 } from "../types/kol";
 import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
 import { errorHandler } from "./error";
+import { getMarketDeploymentService } from "./market/deployment";
+import { ethers } from "ethers";
+import { orderBookAbi } from "../abi/orderBook";
 
 export class KOLService {
+  private provider: ethers.providers.JsonRpcProvider;
+
+  constructor() {
+    this.provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+  }
+
   private readonly baseUrl =
     process.env.KAITO_API_URL || "https://hub.kaito.ai/api/v1/gateway/ai";
 
@@ -25,12 +34,36 @@ export class KOLService {
     );
   }
 
-  private transformKaitoKOL(kaitoKOL: KaitoKOL): KOL {
+  private async transformKaitoKOL(kaitoKOL: KaitoKOL): Promise<KOL> {
+    const marketDeploymentService = getMarketDeploymentService();
+    const marketAddress = await marketDeploymentService.getMarketAddress(
+      kaitoKOL.user_id
+    );
+
+    let volume = 0;
+    if (marketAddress) {
+      try {
+        const orderBook = new ethers.Contract(
+          marketAddress,
+          orderBookAbi,
+          this.provider
+        );
+        const marketVolume = await orderBook.marketVolume();
+        volume = parseFloat(ethers.utils.formatUnits(marketVolume, 6)); // Assuming USDC decimals
+      } catch (error) {
+        console.error(
+          `Error fetching volume for KOL ${kaitoKOL.user_id}:`,
+          error
+        );
+      }
+    }
+
     return {
       address: "", // Will be populated from contract data
+      marketAddress,
       mindshare: kaitoKOL.mindshare,
       rank: parseInt(kaitoKOL.rank),
-      volume: 0, // Will be populated from contract data
+      volume,
       trades: 0, // Will be populated from contract data
       pnl: 0, // Will be populated from contract data
       followers: kaitoKOL.follower_count,
@@ -48,7 +81,12 @@ export class KOLService {
   async getKOLs(limit?: number, offset?: number): Promise<KOL[]> {
     try {
       const response = await this.getTopKOLsWithCache();
-      let kols = response.data.data.map(this.transformKaitoKOL);
+      let kols = await Promise.all(
+        response.data.data.map((kol) => this.transformKaitoKOL(kol))
+      );
+
+      // Sort by volume in descending order
+      kols.sort((a, b) => b.volume - a.volume);
 
       // Apply pagination if provided
       if (typeof offset === "number") {

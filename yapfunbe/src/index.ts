@@ -20,6 +20,10 @@ import { errorHandler } from "./services/error";
 import { analyticsService } from "./services/analytics";
 import { initializeWebSocket } from "./services/websocket";
 import { kolOrderbookService } from "./services/market";
+import {
+  initializeMarketDeploymentService,
+  getMarketDeploymentService,
+} from "./services/market/deployment";
 
 // Load environment variables
 dotenv.config();
@@ -177,12 +181,24 @@ async function startServer() {
     })
   );
 
-  // Initialize KOL orderbook automation
+  // Initialize services
   try {
+    // Initialize market deployment service
+    const marketDeploymentService = initializeMarketDeploymentService(
+      process.env.DEPLOYER_PRIVATE_KEY!
+    );
+    await marketDeploymentService.setupEventListeners();
+    console.log("🚀 Market deployment service initialized");
+
+    // Initialize KOL orderbook automation
     await kolOrderbookService.initialize();
     console.log("🤖 KOL orderbook automation service initialized");
+
+    // Initial market check and deployment
+    await marketDeploymentService.checkAndDeployMarkets();
+    console.log("✅ Initial market check completed");
   } catch (error) {
-    console.error("Failed to initialize KOL orderbook service:", error);
+    console.error("Failed to initialize services:", error);
   }
 
   // Start server

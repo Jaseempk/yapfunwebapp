@@ -7,7 +7,11 @@ import {
   from,
   HttpLink,
   ApolloLink,
+  split,
 } from "@apollo/client";
+import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
+import { getMainDefinition } from "@apollo/client/utilities";
+import { createClient } from "graphql-ws";
 import { onError } from "@apollo/client/link/error";
 import { ReactNode } from "react";
 
@@ -96,8 +100,33 @@ const cache = new InMemoryCache({
   },
 });
 
+// WebSocket link
+const wsLink =
+  typeof window !== "undefined"
+    ? new GraphQLWsLink(
+        createClient({
+          url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4000/graphql",
+        })
+      )
+    : null;
+
+// Split link based on operation type
+const splitLink = wsLink
+  ? split(
+      ({ query }) => {
+        const definition = getMainDefinition(query);
+        return (
+          definition.kind === "OperationDefinition" &&
+          definition.operation === "subscription"
+        );
+      },
+      wsLink,
+      from([errorLink, loggingLink, httpLink])
+    )
+  : from([errorLink, loggingLink, httpLink]);
+
 const client = new ApolloClient({
-  link: from([errorLink, loggingLink, httpLink]),
+  link: splitLink,
   cache,
   defaultOptions: {
     watchQuery: {

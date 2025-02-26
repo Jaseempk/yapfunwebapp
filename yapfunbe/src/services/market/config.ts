@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 interface MarketConfig {
   address: string;
-  abi: ethers.InterfaceAbi;
+  abi: ethers.ContractInterface;
 }
 
 class MarketConfigService {
@@ -45,7 +45,7 @@ class MarketConfigService {
     return this.marketConfigs.get(marketId)?.address;
   }
 
-  getMarketABI(): ethers.InterfaceAbi {
+  getMarketABI(): ethers.ContractInterface {
     // For now, return default ABI
     // In the future, could support different ABIs per market
     return [
@@ -83,7 +83,7 @@ class MarketConfigService {
 
       // Check if all markets have valid addresses
       for (const [marketId, config] of this.marketConfigs) {
-        if (!ethers.isAddress(config.address)) {
+        if (!ethers.utils.isAddress(config.address)) {
           console.warn(`Invalid address for market ${marketId}`);
           return false;
         }

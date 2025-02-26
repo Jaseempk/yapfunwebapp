@@ -46,6 +46,7 @@ export interface KaitoKOL {
 // KOL interface
 export interface KOL {
   address: string;
+  marketAddress: string | null;
   mindshare: number;
   rank: number;
   volume: number;
