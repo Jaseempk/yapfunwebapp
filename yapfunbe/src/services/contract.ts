@@ -29,12 +29,10 @@ export const contractService = {
         provider
       );
       const volume = await contract.marketVolume();
-      console.log("volume:", volume);
-
       return Number(volume) || 0;
     } catch (error) {
       console.error(
-        `Error fetching market volume for ${marketAddress}:`,
+        `Error fetching volume for market ${marketAddress}:`,
         error
       );
       return 0;

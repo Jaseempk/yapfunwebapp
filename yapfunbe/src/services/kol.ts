@@ -39,26 +39,49 @@ export class KOLService {
       let pnl = 0;
 
       try {
-        marketAddress = await marketDeploymentService.getMarketAddress(
-          kaitoKOL.user_id
-        );
-
-        if (marketAddress) {
-          // Get all market data in a single call
-          const positions = await subgraphService.getMarketPositions(
-            marketAddress
+        // First try to get market address
+        try {
+          marketAddress = await marketDeploymentService.getMarketAddress(
+            kaitoKOL.user_id
           );
-          volume = await contractService.getMarketVolume(marketAddress);
-          trades = positions.length;
-          pnl = positions.reduce((total, pos) => total + (pos.pnl || 0), 0);
+          console.log(`[KOL Service] Found market address: ${marketAddress}`);
+        } catch (error) {
+          console.log(
+            `[KOL Service] No market found for KOL: ${kaitoKOL.user_id}`
+          );
+          marketAddress = "";
+        }
+
+        // If we have a market address, get volume from contract
+        if (marketAddress) {
+          try {
+            volume = await contractService.getMarketVolume(marketAddress);
+            console.log(`[KOL Service] Market volume: ${volume}`);
+          } catch (error) {
+            console.error(`[KOL Service] Error getting volume:`, error);
+            volume = 0;
+          }
+
+          // Try to get positions from subgraph, but don't let it block volume
+          try {
+            const positions = await subgraphService.getMarketPositions(
+              marketAddress
+            );
+            trades = positions.length;
+            pnl = positions.reduce((total, pos) => total + (pos.pnl || 0), 0);
+          } catch (error) {
+            console.log(
+              `[KOL Service] Could not get positions from subgraph, using defaults`
+            );
+            trades = 0;
+            pnl = 0;
+          }
         }
       } catch (error) {
-        // Market might not exist yet, which is fine
-        if (
-          !(error instanceof Error && error.message.includes("No market found"))
-        ) {
-          console.error("Error fetching market data:", error);
-        }
+        console.error(
+          `[KOL Service] Unexpected error for KOL ${kaitoKOL.user_id}:`,
+          error
+        );
       }
 
       // Transform data

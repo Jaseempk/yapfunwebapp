@@ -42,7 +42,11 @@ export class MarketDeploymentService {
 
   async checkMarketExists(kolId: string): Promise<boolean> {
     try {
-      const marketAddress = await this.factoryContract.kolIdToMarket(kolId);
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      console.log(
+        `[Market Service] Checking market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+      );
+      const marketAddress = await this.factoryContract.kolIdToMarket(kolIdBN);
       return marketAddress !== "0x0000000000000000000000000000000000000000";
     } catch (error) {
       console.error("Error checking market existence:", error);
@@ -52,7 +56,11 @@ export class MarketDeploymentService {
 
   async getMarketAddress(kolId: string): Promise<string> {
     try {
-      const marketAddress = await this.factoryContract.kolIdToMarket(kolId);
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      console.log(
+        `[Market Service] Getting market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+      );
+      const marketAddress = await this.factoryContract.kolIdToMarket(kolIdBN);
       if (marketAddress === "0x0000000000000000000000000000000000000000") {
         throw new Error(`No market found for KOL ${kolId}`);
       }
@@ -71,9 +79,13 @@ export class MarketDeploymentService {
         throw new Error(`Market already exists for KOL ${kolId}`);
       }
 
-      // Deploy new market with Oracle address
+      // Convert kolId to BigNumber and deploy new market with Oracle address
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      console.log(
+        `[Market Service] Deploying market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+      );
       const tx = await this.factoryContract.initialiseMarket(
-        kolId,
+        kolIdBN,
         yapOracleCA
       );
       const receipt = await tx.wait();
