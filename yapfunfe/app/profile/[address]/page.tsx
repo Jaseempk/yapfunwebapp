@@ -5,10 +5,13 @@ import { useParams } from "next/navigation";
 import { useUser } from "../../providers/UserProvider";
 import ProfileContent from "../../components/ProfileContent";
 import { Loader2 } from "lucide-react";
+import { getAccount } from "@wagmi/core";
+import { config } from "@/app/providers/Web3Providers";
 
 export default function ProfilePage() {
   const { address } = useParams();
   const { isConnected, ensureWalletConnected, isLoading } = useUser();
+  const account = getAccount(config);
 
   useEffect(() => {
     ensureWalletConnected();
@@ -22,9 +25,11 @@ export default function ProfilePage() {
     );
   }
 
-  if (!isConnected) {
+  if (!isConnected && !account.address) {
     return null; // UserProvider will handle redirect
   }
+
+  console.log("ooohoi");
 
   return <ProfileContent userAddress={address as string} />;
 }

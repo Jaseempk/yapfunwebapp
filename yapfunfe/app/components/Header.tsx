@@ -22,12 +22,17 @@ export default function Header() {
     [pathname]
   );
 
-  const handleProfileClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!isConnected) return;
-    router.push(`/profile/${address}`);
-  };
+  const handleProfileClick = async (e: React.MouseEvent) => {
+    try {
+      if (!isConnected && !account.address) return;
 
+      const profilePath = `/profile/${address}`;
+
+      router.push(profilePath);
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
+  };
   return (
     <motion.header
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b"
@@ -84,19 +89,18 @@ export default function Header() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {isConnected ||
-            (account.address && (
-              <button
-                onClick={handleProfileClick}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isActive("/profile")
-                    ? "bg-secondary text-secondary-foreground"
-                    : "hover:bg-secondary/50"
-                } rounded-xl`}
-              >
-                Profile
-              </button>
-            ))}
+          {(isConnected || account.address) && (
+            <button
+              onClick={handleProfileClick}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                isActive("/profile")
+                  ? "bg-secondary text-secondary-foreground"
+                  : "hover:bg-secondary/50"
+              } rounded-xl`}
+            >
+              Profile
+            </button>
+          )}
           <ConnectButton />
         </div>
       </nav>

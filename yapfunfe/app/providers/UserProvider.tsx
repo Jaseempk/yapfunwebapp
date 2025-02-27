@@ -12,6 +12,8 @@ import {
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { setCookie, deleteCookie } from "cookies-next";
+import { getAccount } from "@wagmi/core";
+import { config } from "./Web3Providers";
 
 interface UserContextType {
   address: string | undefined;
