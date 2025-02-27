@@ -11,6 +11,7 @@ import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
 import { errorHandler } from "./error";
 import { getMarketDeploymentService } from "./market/deployment";
 import { subgraphService } from "./subgraph";
+import { contractService } from "./contract";
 
 export class KOLService {
   constructor() {}
@@ -47,7 +48,7 @@ export class KOLService {
           const positions = await subgraphService.getMarketPositions(
             marketAddress
           );
-          volume = await subgraphService.getMarketVolume(marketAddress);
+          volume = await contractService.getMarketVolume(marketAddress);
           trades = positions.length;
           pnl = positions.reduce((total, pos) => total + (pos.pnl || 0), 0);
         }

@@ -7,8 +7,40 @@ import {
   PositionStatus,
   OrderStatus,
 } from "../types/market";
+import { ethers } from "ethers";
+import { orderBookAbi } from "../abi/orderBook";
 
 export const contractService = {
+  async getMarketVolume(marketAddress: string): Promise<number> {
+    try {
+      if (
+        !marketAddress ||
+        marketAddress === "0x0000000000000000000000000000000000000000"
+      ) {
+        return 0;
+      }
+
+      const provider = new ethers.providers.JsonRpcProvider(
+        process.env.RPC_URL
+      );
+      const contract = new ethers.Contract(
+        marketAddress,
+        orderBookAbi,
+        provider
+      );
+      const volume = await contract.marketVolume();
+      console.log("volume:", volume);
+
+      return Number(volume) || 0;
+    } catch (error) {
+      console.error(
+        `Error fetching market volume for ${marketAddress}:`,
+        error
+      );
+      return 0;
+    }
+  },
+
   async getMarketData(marketId: string): Promise<Market> {
     // TODO: Implement actual contract call
     return {
