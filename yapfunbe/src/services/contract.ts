@@ -10,6 +10,27 @@ import {
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
 
+// Create a singleton provider instance
+const provider = new ethers.providers.JsonRpcProvider({
+  url:
+    process.env.RPC_URL ||
+    "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327",
+  timeout: 30000, // 30 seconds timeout
+  throttleLimit: 1,
+});
+
+// Cache contract instances
+const contractCache = new Map<string, ethers.Contract>();
+
+// Helper to get or create contract instance
+const getContract = (marketAddress: string): ethers.Contract => {
+  if (!contractCache.has(marketAddress)) {
+    const contract = new ethers.Contract(marketAddress, orderBookAbi, provider);
+    contractCache.set(marketAddress, contract);
+  }
+  return contractCache.get(marketAddress)!;
+};
+
 export const contractService = {
   async getMarketVolume(marketAddress: string): Promise<number> {
     try {
@@ -20,16 +41,23 @@ export const contractService = {
         return 0;
       }
 
-      const provider = new ethers.providers.JsonRpcProvider(
-        process.env.RPC_URL
-      );
-      const contract = new ethers.Contract(
-        marketAddress,
-        orderBookAbi,
-        provider
-      );
-      const volume = await contract.marketVolume();
-      return Number(volume) || 0;
+      // Add retry logic
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const contract = getContract(marketAddress);
+          const volume = await contract.marketVolume();
+          return Number(volume) / 1e6 || 0;
+        } catch (error: any) {
+          retries--;
+          if (retries === 0) {
+            throw error;
+          }
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+      return 0;
     } catch (error) {
       console.error(
         `Error fetching volume for market ${marketAddress}:`,
@@ -40,26 +68,45 @@ export const contractService = {
   },
 
   async getMarketData(marketId: string): Promise<Market> {
-    // TODO: Implement actual contract call
-    return {
-      id: marketId,
-      name: "Test Market",
-      totalVolume: 1000,
-      totalPositions: 10,
-      currentPrice: 100,
-      priceHistory: [
-        {
-          price: 100,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const contract = getContract(marketId);
+      const [volume, price] = await Promise.all([
+        contract.marketVolume().catch(() => 0),
+        contract._getOraclePrice().catch(() => 0),
+      ]);
+
+      return {
+        id: marketId,
+        name: `Market ${marketId.slice(0, 6)}`,
+        totalVolume: Number(volume) / 1e6,
+        totalPositions: 0,
+        currentPrice: Number(price) / 1e18,
+        priceHistory: [
+          {
+            price: Number(price) / 1e18,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(`Error fetching market data for ${marketId}:`, error);
+      return {
+        id: marketId,
+        name: `Market ${marketId.slice(0, 6)}`,
+        totalVolume: 0,
+        totalPositions: 0,
+        currentPrice: 0,
+        priceHistory: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
   },
 
   async getPosition(positionId: string): Promise<Position> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     return {
       id: positionId,
       marketId: "1",
@@ -74,7 +121,7 @@ export const contractService = {
   },
 
   async getOrders(trader: string): Promise<Order[]> {
-    // TODO: Implement actual contract call using trader address
+    // Return mock data for now
     return [
       {
         id: "1",
@@ -91,7 +138,7 @@ export const contractService = {
   },
 
   async getMarketOrders(marketId: string): Promise<Order[]> {
-    // TODO: Implement actual contract call using marketId
+    // Return mock data for now
     return [
       {
         id: "1",
@@ -113,7 +160,7 @@ export const contractService = {
     amount: number,
     type: PositionType
   ): Promise<Position> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     return {
       id: "1",
       marketId,
@@ -128,7 +175,7 @@ export const contractService = {
   },
 
   async closePosition(address: string, positionId: string): Promise<Position> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     return {
       id: positionId,
       marketId: "1",
@@ -150,7 +197,7 @@ export const contractService = {
     price: number,
     type: OrderType
   ): Promise<Order> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     const now = new Date().toISOString();
     return {
       id: "1",
@@ -170,7 +217,7 @@ export const contractService = {
     orderId: string,
     price: number
   ): Promise<Order> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     return {
       id: orderId,
       marketId: "1",
@@ -185,7 +232,7 @@ export const contractService = {
   },
 
   async cancelOrder(address: string, orderId: string): Promise<Order> {
-    // TODO: Implement actual contract call
+    // Return mock data for now
     return {
       id: orderId,
       marketId: "1",
@@ -200,13 +247,23 @@ export const contractService = {
   },
 
   async calculatePnL(marketId: string, position: Position): Promise<number> {
-    // TODO: Implement actual PnL calculation using marketId and position data
-    const currentPrice = (await this.getMarketData(marketId)).currentPrice;
-    const pnl =
-      position.type === PositionType.LONG
-        ? (currentPrice - position.entryPrice) * position.amount
-        : (position.entryPrice - currentPrice) * position.amount;
-    return pnl;
+    try {
+      const contract = getContract(marketId);
+      const currentPrice = await contract._getOraclePrice().catch(() => 0);
+      const pnl =
+        position.type === PositionType.LONG
+          ? (Number(currentPrice) / 1e18 - position.entryPrice) *
+            position.amount
+          : (position.entryPrice - Number(currentPrice) / 1e18) *
+            position.amount;
+      return pnl;
+    } catch (error) {
+      console.error(
+        `Error calculating PnL for position ${position.id}:`,
+        error
+      );
+      return 0;
+    }
   },
 
   async watchMarketEvents(marketId: string): Promise<void> {

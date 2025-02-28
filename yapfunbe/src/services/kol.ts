@@ -7,10 +7,15 @@ import {
   Duration,
   DurationMap,
 } from "../types/kol";
+import {
+  Position,
+  PositionType,
+  PositionStatus,
+  OrderType,
+} from "../types/market";
 import { cacheUtils, CACHE_TTL, CACHE_PREFIX } from "../config/cache";
 import { errorHandler } from "./error";
 import { getMarketDeploymentService } from "./market/deployment";
-import { subgraphService } from "./subgraph";
 import { contractService } from "./contract";
 
 export class KOLService {
@@ -52,27 +57,46 @@ export class KOLService {
           marketAddress = "";
         }
 
-        // If we have a market address, get volume from contract
+        // If we have a market address, get data from contract
         if (marketAddress) {
           try {
+            // Get volume from contract
             volume = await contractService.getMarketVolume(marketAddress);
             console.log(`[KOL Service] Market volume: ${volume}`);
-          } catch (error) {
-            console.error(`[KOL Service] Error getting volume:`, error);
-            volume = 0;
-          }
 
-          // Try to get positions from subgraph, but don't let it block volume
-          try {
-            const positions = await subgraphService.getMarketPositions(
-              marketAddress
+            // Get orders from contract to calculate trades and PnL
+            const orders = await contractService.getMarketOrders(marketAddress);
+            trades = orders.filter((order) => order.status === "FILLED").length;
+
+            // Calculate total PnL from filled orders
+            const filledOrders = orders.filter(
+              (order) => order.status === "FILLED"
             );
-            trades = positions.length;
-            pnl = positions.reduce((total, pos) => total + (pos.pnl || 0), 0);
+            for (const order of filledOrders) {
+              const position: Position = {
+                id: order.id,
+                marketId: order.marketId,
+                trader: order.trader,
+                amount: order.amount,
+                entryPrice: order.price,
+                type:
+                  order.type === OrderType.MARKET
+                    ? PositionType.LONG
+                    : PositionType.SHORT,
+                status: PositionStatus.CLOSED,
+                pnl: 0,
+                createdAt: order.createdAt,
+                closedAt: order.updatedAt,
+              };
+              const orderPnl = await contractService.calculatePnL(
+                marketAddress,
+                position
+              );
+              pnl += orderPnl;
+            }
           } catch (error) {
-            console.log(
-              `[KOL Service] Could not get positions from subgraph, using defaults`
-            );
+            console.error(`[KOL Service] Error getting market data:`, error);
+            volume = 0;
             trades = 0;
             pnl = 0;
           }
@@ -179,17 +203,19 @@ export class KOLService {
         return [];
       }
 
-      const positions = await subgraphService.getMarketPositions(
-        kol.marketAddress
-      );
-      let trades = positions.map((position) => ({
-        id: position.id,
-        timestamp: position.createdAt,
-        type: position.type === "LONG" ? "BUY" : "SELL",
-        amount: position.amount,
-        price: position.entryPrice,
-        pnl: position.pnl || 0,
-      }));
+      // Get orders from contract
+      const orders = await contractService.getMarketOrders(kol.marketAddress);
+      let trades = orders
+        .filter((order) => order.status === "FILLED")
+        .map((order) => ({
+          id: order.id,
+          timestamp: order.createdAt,
+          type: order.type === OrderType.MARKET ? "BUY" : "SELL",
+          amount: order.amount,
+          price: order.price,
+          pnl: 0, // Calculate PnL if needed
+        }));
+
       if (typeof offset === "number") {
         trades = trades.slice(offset);
       }
@@ -285,7 +311,6 @@ export class KOLService {
     }
   }
 
-  // Clear cache for specific parameters
   async clearCache(
     duration?: Duration,
     topicId?: string,
@@ -307,7 +332,6 @@ export class KOLService {
     }
   }
 
-  // Health check
   async healthCheck(): Promise<boolean> {
     try {
       const response = await this.getTopKOLs(Duration.ONE_DAY, "", 1);

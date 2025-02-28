@@ -1,4 +1,61 @@
-import { Market, Position, PricePoint } from "../types/market";
+import {
+  Market,
+  Position,
+  PricePoint,
+  MarketDeployment,
+  PositionType,
+  PositionStatus,
+} from "../types/market";
+import { ethers } from "ethers";
+import { orderBookAbi } from "../abi/orderBook";
+
+const provider = new ethers.providers.JsonRpcProvider(
+  process.env.RPC_URL || "http://localhost:8545"
+);
+
+async function getContract(address: string) {
+  return new ethers.Contract(address, orderBookAbi, provider);
+}
+
+// Subgraph entity types
+interface SubgraphMarketInitialized {
+  id: string;
+  kolId: string;
+  maker: string;
+  marketAddy: string;
+}
+
+interface SubgraphPositionClosed {
+  id: string;
+  user: string;
+  market: string;
+  pnl: string;
+  positionId: string;
+  blockNumber: string;
+  blockTimestamp: string;
+}
+
+interface SubgraphOrderFilled {
+  id: string;
+  orderId: string;
+  filledQuantity: string;
+  counterpartyTrader: string;
+  blockNumber: string;
+  blockTimestamp: string;
+}
+
+interface SubgraphMarketVolume {
+  totalVolume: string;
+}
+
+interface SubgraphKolMarket {
+  marketAddress: string;
+}
+
+interface SubgraphNewMarket {
+  id: string;
+  kolId: string;
+}
 
 interface SubgraphMarket {
   id: string;
@@ -28,19 +85,6 @@ interface SubgraphPosition {
   pnl: string;
   createdAt: string;
   closedAt: string | null;
-}
-
-interface SubgraphKolMarket {
-  marketAddress: string;
-}
-
-interface SubgraphMarketVolume {
-  totalVolume: string;
-}
-
-interface SubgraphNewMarket {
-  id: string;
-  kolId: string;
 }
 
 export class SubgraphService {
@@ -93,151 +137,208 @@ export class SubgraphService {
 
   async getMarkets(): Promise<Market[]> {
     const query = `
-      query GetMarkets {
-        markets {
+      query GetNewMarkets {
+        newMarketInitialisedAndWhitelisteds {
           id
-          name
-          description
-          totalVolume
-          totalPositions
-          currentPrice
-          priceHistory {
-            price
-            timestamp
-          }
-          createdAt
-          updatedAt
+          kolId
+          maker
+          marketAddy
         }
       }
     `;
 
-    const data = await this.query<{ markets: SubgraphMarket[] }>(
-      this.orderBookEndpoint,
-      query
+    const data = await this.query<{
+      newMarketInitialisedAndWhitelisteds: SubgraphMarketInitialized[];
+    }>(this.factoryEndpoint, query);
+
+    const markets = await Promise.all(
+      (data.newMarketInitialisedAndWhitelisteds || []).map(async (market) => {
+        try {
+          const contract = await getContract(market.marketAddy);
+
+          // Get volume from contract
+          const volume = await contract.marketVolume();
+
+          // Get current price from contract
+          const price = await contract._getOraclePrice();
+
+          // Create empty price history array
+          const priceHistory: PricePoint[] = [];
+
+          return {
+            id: market.marketAddy,
+            name: `KOL Market ${market.kolId}`,
+            description: `Market for KOL ${market.kolId}`,
+            totalVolume: Number(volume) / 1e6,
+            totalPositions: 0,
+            currentPrice: Number(price) / 1e18,
+            priceHistory,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching market data for ${market.marketAddy}:`,
+            error
+          );
+          return {
+            id: market.marketAddy,
+            name: `KOL Market ${market.kolId}`,
+            description: `Market for KOL ${market.kolId}`,
+            totalVolume: 0,
+            totalPositions: 0,
+            currentPrice: 0,
+            priceHistory: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      })
     );
-    return (data.markets || []).map((market) => this.transformMarket(market));
+
+    return markets;
   }
 
   async getMarket(id: string): Promise<Market | null> {
     const query = `
       query GetMarket($id: ID!) {
-        market(id: $id) {
+        newMarketInitialisedAndWhitelisted(id: $id) {
           id
-          name
-          description
-          totalVolume
-          totalPositions
-          currentPrice
-          priceHistory {
-            price
-            timestamp
-          }
-          createdAt
-          updatedAt
+          kolId
+          maker
+          marketAddy
         }
       }
     `;
 
-    const data = await this.query<{ market: SubgraphMarket | null }>(
-      this.orderBookEndpoint,
-      query,
-      { id }
-    );
-    return data.market ? this.transformMarket(data.market) : null;
+    try {
+      const data = await this.query<{
+        newMarketInitialisedAndWhitelisted: SubgraphMarketInitialized | null;
+      }>(this.factoryEndpoint, query, { id });
+
+      if (!data.newMarketInitialisedAndWhitelisted) {
+        return null;
+      }
+
+      const market = data.newMarketInitialisedAndWhitelisted;
+      const contract = await getContract(market.marketAddy);
+
+      // Get volume from contract
+      const volume = await contract.marketVolume();
+
+      // Get current price from contract
+      const price = await contract._getOraclePrice();
+
+      // Create empty price history array
+      const priceHistory: PricePoint[] = [];
+
+      return {
+        id: market.marketAddy,
+        name: `KOL Market ${market.kolId}`,
+        description: `Market for KOL ${market.kolId}`,
+        totalVolume: Number(volume) / 1e6,
+        totalPositions: 0,
+        currentPrice: Number(price) / 1e18,
+        priceHistory,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(`Error fetching market data:`, error);
+      return null;
+    }
   }
 
   async getPositions(trader: string): Promise<Position[]> {
     const query = `
       query GetPositions($trader: String!) {
-        positions(where: { trader: $trader }) {
+        positionCloseds(where: { user: $trader }) {
           id
-          market {
-            id
-          }
-          trader
-          amount
-          entryPrice
-          type
-          status
+          user
+          market
           pnl
-          createdAt
-          closedAt
+          positionId
+          blockNumber
+          blockTimestamp
         }
       }
     `;
 
-    const data = await this.query<{ positions: SubgraphPosition[] }>(
-      this.orderBookEndpoint,
-      query,
-      { trader }
-    );
-    return (data.positions || []).map((position) =>
-      this.transformPosition(position)
-    );
+    const data = await this.query<{
+      positionCloseds: SubgraphPositionClosed[];
+    }>(this.orderBookEndpoint, query, { trader });
+
+    return (data.positionCloseds || []).map((position) => ({
+      id: position.id,
+      marketId: position.market,
+      trader: position.user,
+      amount: 0, // Not available in event
+      entryPrice: 0, // Not available in event
+      type: PositionType.LONG, // Not available in event
+      status: PositionStatus.CLOSED,
+      pnl: Number(position.pnl) / 1e6,
+      createdAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
+      closedAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
+    }));
   }
 
   async getMarketPositions(marketId: string): Promise<Position[]> {
     const query = `
       query GetMarketPositions($marketId: ID!) {
-        positions(where: { market: $marketId }) {
+        positionCloseds(where: { market: $marketId }) {
           id
-          market {
-            id
-          }
-          trader
-          amount
-          entryPrice
-          type
-          status
+          user
+          market
           pnl
-          createdAt
-          closedAt
+          positionId
+          blockNumber
+          blockTimestamp
         }
       }
     `;
 
-    const data = await this.query<{ positions: SubgraphPosition[] }>(
-      this.orderBookEndpoint,
-      query,
-      { marketId }
-    );
-    return (data.positions || []).map((position) =>
-      this.transformPosition(position)
-    );
+    const data = await this.query<{
+      positionCloseds: SubgraphPositionClosed[];
+    }>(this.orderBookEndpoint, query, { marketId });
+
+    return (data.positionCloseds || []).map((position) => ({
+      id: position.id,
+      marketId: position.market,
+      trader: position.user,
+      amount: 0, // Not available in event
+      entryPrice: 0, // Not available in event
+      type: PositionType.LONG, // Not available in event
+      status: PositionStatus.CLOSED,
+      pnl: Number(position.pnl) / 1e6,
+      createdAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
+      closedAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
+    }));
   }
 
   async checkMarketExists(kolId: string): Promise<string | null> {
     const query = `
       query CheckMarket($kolId: String!) {
-        kolMarkets(where: { kolId: $kolId }) {
-          marketAddress
+        newMarketInitialisedAndWhitelisteds(where: { kolId: $kolId }) {
+          marketAddy
         }
       }
     `;
 
-    const data = await this.query<{ kolMarkets: SubgraphKolMarket[] }>(
-      this.oracleEndpoint,
-      query,
-      { kolId }
-    );
-    return data.kolMarkets?.[0]?.marketAddress || null;
+    const data = await this.query<{
+      newMarketInitialisedAndWhitelisteds: SubgraphMarketInitialized[];
+    }>(this.factoryEndpoint, query, { kolId });
+    return data.newMarketInitialisedAndWhitelisteds?.[0]?.marketAddy || null;
   }
 
   async getMarketVolume(marketAddress: string): Promise<number> {
-    const query = `
-      query GetVolume($marketAddress: String!) {
-        market(id: $marketAddress) {
-          totalVolume
-        }
-      }
-    `;
-
-    const data = await this.query<{ market: SubgraphMarketVolume | null }>(
-      this.orderBookEndpoint,
-      query,
-      { marketAddress }
-    );
-    return data.market ? parseFloat(data.market.totalVolume) : 0;
+    try {
+      const contract = await getContract(marketAddress);
+      const volume = await contract.marketVolume();
+      return Number(volume) / 1e6;
+    } catch (error) {
+      console.error(`Error fetching market volume:`, error);
+      return 0;
+    }
   }
 
   async getNewMarketDeployments(
@@ -245,56 +346,20 @@ export class SubgraphService {
   ): Promise<Array<{ marketAddress: string; kolId: string }>> {
     const query = `
       query GetNewMarkets($timestamp: Int!) {
-        markets(where: { createdAt_gt: $timestamp }) {
-          id
+        newMarketInitialisedAndWhitelisteds(where: { blockTimestamp_gt: $timestamp }) {
+          marketAddy
           kolId
         }
       }
     `;
 
-    const data = await this.query<{ markets: SubgraphNewMarket[] }>(
-      this.factoryEndpoint,
-      query,
-      { timestamp: fromTimestamp }
-    );
-    return (data.markets || []).map((market) => ({
-      marketAddress: market.id,
+    const data = await this.query<{
+      newMarketInitialisedAndWhitelisteds: SubgraphMarketInitialized[];
+    }>(this.factoryEndpoint, query, { timestamp: fromTimestamp });
+    return (data.newMarketInitialisedAndWhitelisteds || []).map((market) => ({
+      marketAddress: market.marketAddy,
       kolId: market.kolId,
     }));
-  }
-
-  private transformMarket(market: SubgraphMarket): Market {
-    return {
-      id: market.id,
-      name: market.name,
-      description: market.description,
-      totalVolume: parseFloat(market.totalVolume),
-      totalPositions: parseInt(market.totalPositions),
-      currentPrice: parseFloat(market.currentPrice),
-      priceHistory: market.priceHistory.map(
-        (point): PricePoint => ({
-          price: parseFloat(point.price),
-          timestamp: point.timestamp,
-        })
-      ),
-      createdAt: market.createdAt,
-      updatedAt: market.updatedAt,
-    };
-  }
-
-  private transformPosition(position: SubgraphPosition): Position {
-    return {
-      id: position.id,
-      marketId: position.market.id,
-      trader: position.trader,
-      amount: parseFloat(position.amount),
-      entryPrice: parseFloat(position.entryPrice),
-      type: position.type as Position["type"],
-      status: position.status as Position["status"],
-      pnl: position.pnl ? parseFloat(position.pnl) : undefined,
-      createdAt: position.createdAt,
-      closedAt: position.closedAt || undefined,
-    };
   }
 }
 

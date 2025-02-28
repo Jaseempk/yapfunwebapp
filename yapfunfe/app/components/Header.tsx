@@ -24,9 +24,13 @@ export default function Header() {
 
   const handleProfileClick = async (e: React.MouseEvent) => {
     try {
-      if (!isConnected && !account.address) return;
+      // Get address from either source
+      const userAddress = address || account.address;
 
-      const profilePath = `/profile/${address}`;
+      // Only proceed if we have an address
+      if (!userAddress) return;
+
+      const profilePath = `/profile/${userAddress}`;
 
       router.push(profilePath);
     } catch (error) {
@@ -46,7 +50,7 @@ export default function Header() {
             href="/"
             className="text-xl font-bold bg-gradient-to-r white  bg-clip-text"
           >
-            yapfun
+            Yapfun
             <span className="ml-1 text-xs font-medium text-muted-foreground">
               BETA
             </span>
