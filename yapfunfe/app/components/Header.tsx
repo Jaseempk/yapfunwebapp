@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useUser } from "../providers/UserProvider";
 import { ConnectButton } from "./ConnectButton";
 import { motion } from "framer-motion";
@@ -11,7 +11,6 @@ import { getAccount } from "@wagmi/core";
 
 export default function Header() {
   const pathname = usePathname();
-  const router = useRouter();
   const account = getAccount(config);
   const { address, isConnected } = useUser();
 
@@ -22,21 +21,9 @@ export default function Header() {
     [pathname]
   );
 
-  const handleProfileClick = async (e: React.MouseEvent) => {
-    try {
-      // Get address from either source
-      const userAddress = address || account.address;
+  // Get the current user's address from either source
+  const currentAddress = address || account.address;
 
-      // Only proceed if we have an address
-      if (!userAddress) return;
-
-      const profilePath = `/profile/${userAddress}`;
-
-      router.push(profilePath);
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  };
   return (
     <motion.header
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b"
@@ -93,9 +80,10 @@ export default function Header() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {(isConnected || account.address) && (
-            <button
-              onClick={handleProfileClick}
+          {(isConnected || account.address) && currentAddress && (
+            <Link
+              href={`/profile/${currentAddress}`}
+              prefetch={true}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 isActive("/profile")
                   ? "bg-secondary text-secondary-foreground"
@@ -103,7 +91,7 @@ export default function Header() {
               } rounded-xl`}
             >
               Profile
-            </button>
+            </Link>
           )}
           <ConnectButton />
         </div>

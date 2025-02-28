@@ -10,7 +10,7 @@ import {
   useMemo,
 } from "react";
 import { useAccount } from "wagmi";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { setCookie, deleteCookie } from "cookies-next";
 import { getAccount } from "@wagmi/core";
 import { config } from "./Web3Providers";
@@ -52,6 +52,7 @@ export function UserProvider({ children }: UserProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState({});
   const router = useRouter();
+  const pathname = usePathname();
 
   // Memoize user data to prevent unnecessary re-renders
   const memoizedUserData = useMemo(() => userData, [userData]);
@@ -95,29 +96,42 @@ export function UserProvider({ children }: UserProviderProps) {
 
   // Function to ensure wallet is connected before accessing protected routes
   const ensureWalletConnected = useCallback(async () => {
-    if (!isConnected) {
-      router.push("/");
+    // Check both wagmi and direct account status
+    const account = getAccount(config);
+    const isWalletConnected = isConnected || !!account.address;
+
+    if (!isWalletConnected) {
+      // Only redirect if we're on a protected route
+      if (
+        pathname?.startsWith("/profile") ||
+        pathname?.startsWith("/positions")
+      ) {
+        router.push("/");
+      }
       return false;
     }
     return true;
-  }, [isConnected, router]);
+  }, [isConnected, router, pathname]);
 
   // Update routes when wallet connection changes
   useEffect(() => {
-    if (!isConnected && !isLoading) {
-      const currentPath = window.location.pathname;
+    const account = getAccount(config);
+    const isWalletConnected = isConnected || !!account.address;
+
+    if (!isWalletConnected && !isLoading) {
+      const currentPath = pathname;
       if (
-        currentPath.startsWith("/profile") ||
-        currentPath.startsWith("/positions")
+        currentPath?.startsWith("/profile") ||
+        currentPath?.startsWith("/positions")
       ) {
         router.push("/");
       }
     }
-  }, [isConnected, isLoading, router]);
+  }, [isConnected, isLoading, router, pathname]);
 
   const value = {
-    address,
-    isConnected,
+    address: address || getAccount(config).address,
+    isConnected: isConnected || !!getAccount(config).address,
     isLoading,
     ensureWalletConnected,
     userData: memoizedUserData,
