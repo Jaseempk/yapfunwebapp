@@ -132,11 +132,7 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
                   Error loading PnL
                 </p>
               ) : (
-                <p
-                  className={`text-xl font-bold mt-auto ${
-                    isPositive ? "text-green-400" : "white"
-                  }`}
-                >
+                <p className={`text-xl font-bold mt-auto white`}>
                   {formattedPnL}
                 </p>
               )}
