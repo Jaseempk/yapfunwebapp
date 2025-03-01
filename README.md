@@ -1,7 +1,5 @@
 # YapFun - Crypto KOL Mindshare Derivatives Market
 
-![YapFun Banner](https://via.placeholder.com/1200x300/4F46E5/FFFFFF?text=YapFun+Web3+Prediction+Markets)
-
 YapFun is a decentralized derivatives market focused on mindshares of Key Opinion Leaders (KOLs) in Twitter. The platform allows users to take long or short positions on the future influence and performance of crypto KOLs, creating a unique market-driven approach to valuing online influence.
 
 ## Features
