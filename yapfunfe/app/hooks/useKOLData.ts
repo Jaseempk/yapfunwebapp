@@ -105,6 +105,7 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
     fetchPolicy: "network-only", // Don't use cache for this query
     errorPolicy: "all", // Return partial data if available
   });
+  console.log("daata:", data);
 
   const [marketAddresses, setMarketAddresses] = useState<
     Record<string, `0x${string}`>

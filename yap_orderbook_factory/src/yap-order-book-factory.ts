@@ -11,7 +11,7 @@ import {
   RoleRevoked,
 } from "../generated/schema";
 
-import { YapOrderBook } from "../generated/templates";
+// import { YapOrderBook } from "../generated/templates";
 
 export function handleNewMarketInitialisedAndWhitelisted(
   event: NewMarketInitialisedAndWhitelistedEvent
@@ -29,7 +29,7 @@ export function handleNewMarketInitialisedAndWhitelisted(
 
   entity.save();
 
-  YapOrderBook.create(event.params.marketAddy);
+  // YapOrderBook.create(event.params.marketAddy);
 }
 
 export function handleRoleAdminChanged(event: RoleAdminChangedEvent): void {
