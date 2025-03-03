@@ -22,6 +22,7 @@ export const CACHE_TTL = {
   ORDERBOOK: 30, // 30 seconds
   USER: 3600, // 1 hour
   AUTH: 86400, // 24 hours
+  MARKET_CYCLE: 3 * 24 * 60 * 60
 };
 
 export const cacheUtils = {
