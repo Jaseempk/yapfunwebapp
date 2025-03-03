@@ -1,4 +1,4 @@
-export const yapOracleCA = "0x8ad244404B40882A3447ABF74A78227bCD15E74A";
+export const yapOracleCA = "0xDa1B4fFfAF462D5c39c2c06b33b1d400c0E04aB7";
 
 export const yapOracleAbi = [
   {
@@ -16,6 +16,37 @@ export const yapOracleAbi = [
     type: "error",
   },
   { inputs: [], name: "YO__InvalidParams", type: "error" },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "kolId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "rank",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "mindshareScore",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "timestamp",
+        type: "uint256",
+      },
+    ],
+    name: "CrashedOutKolDataUpdated",
+    type: "event",
+  },
   {
     anonymous: false,
     inputs: [
@@ -220,6 +251,17 @@ export const yapOracleAbi = [
     name: "supportsInterface",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "kolId", type: "uint256" },
+      { internalType: "uint256", name: "rank", type: "uint256" },
+      { internalType: "uint256", name: "mindshare", type: "uint256" },
+    ],
+    name: "updateCrashedOutKolData",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
