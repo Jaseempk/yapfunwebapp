@@ -1,0 +1,50 @@
+specVersion: 1.2.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: YapOrderBook
+    network: base-sepolia
+    source:
+      address: "0xD2bB8F9cb41a03a5c93770dfe508F00Ee6FB5075"
+      abi: YapOrderBook
+      startBlock: 22619466
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - FeeWithdrawalInitiated
+        - MarketReset
+        - OrderCanceled
+        - OrderCreated
+        - OrderFilled
+        - PositionClosed
+        - RoleAdminChanged
+        - RoleGranted
+        - RoleRevoked
+      abis:
+        - name: YapOrderBook
+          file: ./abis/YapOrderBook.json
+      eventHandlers:
+        - event: FeeWithdrawalInitiated(address,uint256)
+          handler: handleFeeWithdrawalInitiated
+        - event: MarketReset(uint256)
+          handler: handleMarketReset
+        - event: OrderCanceled(indexed uint256,(address,uint256,uint256,bool,uint256,uint256,uint256,uint256,uint8),uint256)
+          handler: handleOrderCanceled
+        - event: OrderCreated(indexed uint256,indexed address,indexed uint256,bool,uint256,uint256,uint256,uint256)
+          handler: handleOrderCreated
+        - event: OrderFilled(indexed uint256,uint256,address)
+          handler: handleOrderFilled
+        - event: PositionClosed(address,address,int256,uint256)
+          handler: handlePositionClosed
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+      file: ./src/yap-order-book.ts
