@@ -8,9 +8,9 @@ dataSources:
     name: YapEscrow
     network: base-sepolia
     source:
-      address: "0x0f9ee075C54130b316BCc1624BeD52FD3420be7B"
+      address: "0xa55b6f0BC1Ef608393678530C179D19715B75e7c"
       abi: YapEscrow
-      startBlock: 22227994
+      startBlock: 22661788
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
