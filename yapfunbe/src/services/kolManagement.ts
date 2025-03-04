@@ -33,8 +33,8 @@ class KOLManagementService {
         username: kol.username,
       }));
 
-      const cycleStatus = marketCycleService.getCycleStatus();
-      const currentCycle = marketCycleService.getCurrentCycle();
+      const cycleStatus = await marketCycleService.getCycleStatus();
+      const currentCycle = await marketCycleService.getCurrentCycle();
 
       if (cycleStatus === CycleStatus.NOT_STARTED) {
         // First market deployment will initialize the cycle
@@ -60,7 +60,7 @@ class KOLManagementService {
 
   // Update data for KOLs who fell out of top 100
   private async updateCrashedOutKolData(): Promise<void> {
-    const crashedOutKols = marketCycleService.getCrashedOutKols();
+    const crashedOutKols = await marketCycleService.getCrashedOutKols();
     if (crashedOutKols.length === 0) return;
 
     console.log(`Updating data for ${crashedOutKols.length} crashed out KOLs`);
@@ -105,7 +105,7 @@ class KOLManagementService {
     await marketCycleService.startCycleEnd();
 
     // Close all positions for each market
-    const cycle = marketCycleService.getCurrentCycle();
+    const cycle = await marketCycleService.getCurrentCycle();
     if (!cycle) return;
 
     // Get all markets with active positions
@@ -115,7 +115,9 @@ class KOLManagementService {
 
     // Close positions for each market
     for (const marketAddress of activeMarkets) {
-      const positions = marketCycleService.getActivePositions(marketAddress);
+      const positions = await marketCycleService.getActivePositions(
+        marketAddress
+      );
       const contract = new ethers.Contract(
         marketAddress,
         orderBookAbi,
@@ -151,13 +153,13 @@ class KOLManagementService {
   }
 
   // Get current top 100 KOLs
-  getCurrentTopKOLs(): KOLData[] {
-    const cycle = marketCycleService.getCurrentCycle();
+  async getCurrentTopKOLs(): Promise<KOLData[]> {
+    const cycle = await marketCycleService.getCurrentCycle();
     return cycle?.activeKols || [];
   }
 
   // Get crashed out KOLs
-  getCrashedOutKOLs(): CrashedOutKOL[] {
+  async getCrashedOutKOLs(): Promise<CrashedOutKOL[]> {
     return marketCycleService.getCrashedOutKols();
   }
 }

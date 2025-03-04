@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 import { Loader2 } from "lucide-react";
+import SearchBar from "./components/SearchBar";
 
 // Lazy load components
 const TrendingCarousel = lazy(() => import("./components/TrendingCarousel"));
@@ -36,18 +37,24 @@ const DeploymentsSkeleton = () => (
 );
 
 export default function Home() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
-    <div className="container mx-auto px-4 py-6 space-y-8">
+    <main className="container mx-auto px-4 py-6 space-y-8">
       <Suspense fallback={<CarouselSkeleton />}>
         <TrendingCarousel />
       </Suspense>
 
       <div className="space-y-6">
-        {/* <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
-          Top KOL Rankings
-        </h2> */}
+        <div className="max-w-md mx-auto">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="w-full"
+          />
+        </div>
         <Suspense fallback={<RankingsSkeleton />}>
-          <RankingsContent />
+          <RankingsContent searchQuery={searchQuery} />
         </Suspense>
       </div>
 
@@ -59,6 +66,6 @@ export default function Home() {
           <NewKOLDeployments />
         </Suspense>
       </div>
-    </div>
+    </main>
   );
 }

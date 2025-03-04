@@ -38,9 +38,19 @@ function KOLCardSkeleton() {
   );
 }
 
-export default function RankingsContent() {
+interface RankingsContentProps {
+  searchQuery?: string;
+}
+
+export default function RankingsContent({
+  searchQuery = "",
+}: RankingsContentProps) {
   const [timeRange, setTimeRange] = useState("7d");
   const { kols, loading, error } = useKOLData({ timeFilter: timeRange });
+
+  const filteredKols = kols.filter((kol) =>
+    kol.handle.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (error) {
     return (
@@ -91,7 +101,7 @@ export default function RankingsContent() {
                     .fill(0)
                     .map((_, i) => <KOLCardSkeleton key={i} />)
                 : // Show all KOLs
-                  kols.map((kol: KOLData) => (
+                  filteredKols.map((kol: KOLData) => (
                     <KOLCard
                       key={kol.user_id}
                       {...kol}
@@ -112,7 +122,7 @@ export default function RankingsContent() {
                     .fill(0)
                     .map((_, i) => <KOLCardSkeleton key={i} />)
                 : // Sort KOLs by trade volume
-                  [...kols]
+                  [...filteredKols]
                     .sort((a, b) => {
                       const volumeA = Number(a.volume.replace(/[^0-9.]/g, ""));
                       const volumeB = Number(b.volume.replace(/[^0-9.]/g, ""));

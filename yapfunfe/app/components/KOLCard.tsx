@@ -9,9 +9,11 @@ import {
   TrendingDown,
   Users,
   BarChart2,
+  Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import MarketDetail from "./MarketDetail";
+import ExpiryTimer from "./ExpiryTimer";
 
 interface KOLCardProps {
   rank: number;
@@ -26,6 +28,7 @@ interface KOLCardProps {
   isTop?: boolean;
   kolId: string;
   marketAddress?: `0x${string}`;
+  startTime?: number;
 }
 
 export default function KOLCard({
@@ -41,6 +44,7 @@ export default function KOLCard({
   isTop = false,
   kolId,
   marketAddress,
+  startTime,
 }: KOLCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -101,6 +105,16 @@ export default function KOLCard({
               </div>
             </div>
 
+            {startTime && marketAddress && (
+              <div className="mt-2 sm:mt-3 flex items-center justify-end space-x-1 text-muted-foreground">
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <ExpiryTimer
+                  startTime={startTime}
+                  className="text-[10px] sm:text-xs"
+                />
+              </div>
+            )}
+
             <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-4 text-[10px] sm:text-sm">
               <div className="flex items-center bg-background/50 rounded-lg p-1.5 sm:p-2">
                 <BarChart2 className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
@@ -152,6 +166,7 @@ export default function KOLCard({
           tweetCount,
           kolId,
           marketAddress,
+          startTime,
         }}
       />
     </>

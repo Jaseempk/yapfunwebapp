@@ -8,6 +8,7 @@ import { ConnectButton } from "./ConnectButton";
 import { motion } from "framer-motion";
 import { config } from "../providers/Web3Providers";
 import { getAccount } from "@wagmi/core";
+import HowItWorksModal from "./HowItWorksModal";
 
 export default function Header() {
   const pathname = usePathname();
@@ -35,7 +36,7 @@ export default function Header() {
         <div className="flex items-center space-x-8">
           <Link
             href="/"
-            className="text-xl font-bold bg-gradient-to-r white  bg-clip-text"
+            className="text-xl font-bold bg-gradient-to-r white bg-clip-text"
           >
             Yapfun
             <span className="ml-1 text-xs font-medium text-muted-foreground">
@@ -56,16 +57,18 @@ export default function Header() {
             >
               Rankings
             </Link>
-            <Link
-              href="/positions"
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                isActive("/positions")
-                  ? "bg-secondary text-secondary-foreground"
-                  : "hover:bg-secondary/50"
-              } rounded-xl`}
-            >
-              Positions
-            </Link>
+            {(isConnected || account.address) && (
+              <Link
+                href="/positions"
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  isActive("/positions")
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary/50"
+                } rounded-xl`}
+              >
+                Positions
+              </Link>
+            )}
             <Link
               href="/analytics"
               className={`px-4 py-2 rounded-lg transition-colors ${
@@ -76,6 +79,7 @@ export default function Header() {
             >
               Analytics
             </Link>
+            <HowItWorksModal />
           </div>
         </div>
 
