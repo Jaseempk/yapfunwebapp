@@ -17,24 +17,84 @@ const DEFAULT_GAS_SETTINGS = {
   gasLimit: 2000000, // 2M gas limit
 };
 
-// Create a singleton provider instance
+// List of RPC URLs in order of preference
+const RPC_URLS = [
+  process.env.RPC_URL,
+  "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327",
+  "https://sepolia.base.org",
+].filter(Boolean) as string[];
+
+// Create a singleton provider instance with better configuration
+const network = {
+  name: "base-sepolia",
+  chainId: 84532,
+};
+
+const connectionInfo = {
+  url: RPC_URLS[0],
+  headers: {
+    "Accept-Encoding": "gzip, deflate, br",
+  },
+};
+
 export const provider = new ethers.providers.JsonRpcProvider(
-  process.env.RPC_URL ||
-    "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327",
-  "base-sepolia" // Network name
+  connectionInfo,
+  network
 );
 
-// Function to get current network gas prices
+// Function to get a working provider
+async function getWorkingProvider(): Promise<ethers.providers.Provider> {
+  for (const url of RPC_URLS) {
+    try {
+      const tempProvider = new ethers.providers.JsonRpcProvider(
+        { url, headers: { "Accept-Encoding": "gzip, deflate, br" } },
+        network
+      );
+      // Test the provider with a simple call
+      await tempProvider.getBlockNumber();
+      return tempProvider;
+    } catch (error) {
+      console.warn(`Failed to connect to ${url}:`, error);
+    }
+  }
+  throw new Error("All RPC endpoints failed");
+}
+
+// Function to get current network gas prices with better fallbacks
 async function getNetworkGasPrices() {
   try {
-    const feeData = await provider.getFeeData();
-    return {
-      maxFeePerGas: feeData.maxFeePerGas || DEFAULT_GAS_SETTINGS.maxFeePerGas,
-      maxPriorityFeePerGas:
-        feeData.maxPriorityFeePerGas ||
-        DEFAULT_GAS_SETTINGS.maxPriorityFeePerGas,
-      gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
-    };
+    // Try with the main provider first
+    try {
+      const feeData = await provider.getFeeData();
+      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        return {
+          maxFeePerGas: feeData.maxFeePerGas,
+          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+          gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
+        };
+      }
+    } catch (mainError) {
+      console.warn("Error with main provider, trying fallbacks:", mainError);
+    }
+
+    // Try with fallback providers
+    try {
+      const workingProvider = await getWorkingProvider();
+      const feeData = await workingProvider.getFeeData();
+      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        return {
+          maxFeePerGas: feeData.maxFeePerGas,
+          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+          gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
+        };
+      }
+    } catch (fallbackError) {
+      console.warn("Error with fallback providers:", fallbackError);
+    }
+
+    // If all else fails, use hardcoded values based on recent network conditions
+    console.warn("Using hardcoded gas settings as last resort");
+    return DEFAULT_GAS_SETTINGS;
   } catch (error) {
     console.warn(
       "Error fetching network gas prices, using default settings:",
@@ -44,34 +104,40 @@ async function getNetworkGasPrices() {
   }
 }
 
-// Cache contract instances
-const contractCache = new Map<string, ethers.Contract>();
+// Cache contract instances with expiry
+interface CachedContract {
+  contract: ethers.Contract;
+  timestamp: number;
+}
+
+const contractCache = new Map<string, CachedContract>();
+const CACHE_EXPIRY = 15 * 60 * 1000; // 15 minutes
 
 // Helper to get or create contract instance with gas optimization
-const getContract = (marketAddress: string): ethers.Contract => {
-  if (!contractCache.has(marketAddress)) {
-    const contract = new ethers.Contract(marketAddress, orderBookAbi, provider);
+const getContract = async (marketAddress: string): Promise<ethers.Contract> => {
+  const now = Date.now();
+  const cached = contractCache.get(marketAddress);
 
-    // Add overrides for gas optimization
-    const overridableContract = contract as ethers.Contract & {
-      populateTransaction: typeof contract.populateTransaction & {
-        defaultOverrides?: () => Promise<ethers.PayableOverrides>;
-      };
-    };
-
-    // Set default transaction overrides
-    overridableContract.populateTransaction.defaultOverrides = async () => {
-      const gasPrices = await getNetworkGasPrices();
-      return {
-        maxFeePerGas: gasPrices.maxFeePerGas,
-        maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
-        gasLimit: gasPrices.gasLimit,
-      };
-    };
-
-    contractCache.set(marketAddress, overridableContract);
+  // Return cached contract if it exists and hasn't expired
+  if (cached && now - cached.timestamp < CACHE_EXPIRY) {
+    return cached.contract;
   }
-  return contractCache.get(marketAddress)!;
+
+  // Get a working provider
+  const workingProvider = await getWorkingProvider();
+  const contract = new ethers.Contract(
+    marketAddress,
+    orderBookAbi,
+    workingProvider
+  );
+
+  // Cache the new contract instance
+  contractCache.set(marketAddress, {
+    contract,
+    timestamp: now,
+  });
+
+  return contract;
 };
 
 export const contractService = {
@@ -84,23 +150,29 @@ export const contractService = {
         return 0;
       }
 
-      // Add retry logic
+      // Add retry logic with exponential backoff
       let retries = 3;
       while (retries > 0) {
         try {
-          const contract = getContract(marketAddress);
-          const overrides =
-            (await contract.populateTransaction.defaultOverrides?.()) || {};
-          const tx = await contract.populateTransaction.marketVolume();
-          const volume = await contract.marketVolume({ ...overrides, ...tx });
+          const contract = await getContract(marketAddress);
+          const gasPrices = await getNetworkGasPrices();
+
+          // Call the function with gas settings directly
+          const volume = await contract.marketVolume({
+            maxFeePerGas: gasPrices.maxFeePerGas,
+            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
+            gasLimit: gasPrices.gasLimit,
+          });
+
           return Number(volume) / 1e6 || 0;
         } catch (error: any) {
           retries--;
           if (retries === 0) {
             throw error;
           }
-          // Wait before retrying
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Exponential backoff
+          const delay = 1000 * Math.pow(2, 3 - retries);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
       return 0;
@@ -115,13 +187,25 @@ export const contractService = {
 
   async getMarketData(marketId: string): Promise<Market> {
     try {
-      const contract = getContract(marketId);
-      const overrides =
-        (await contract.populateTransaction.defaultOverrides?.()) || {};
+      const contract = await getContract(marketId);
+      const gasPrices = await getNetworkGasPrices();
 
+      // Use gas settings directly without mixing with transaction data
       const [volume, price] = await Promise.all([
-        contract.marketVolume({ ...overrides }).catch(() => 0),
-        contract._getOraclePrice({ ...overrides }).catch(() => 0),
+        contract
+          .marketVolume({
+            maxFeePerGas: gasPrices.maxFeePerGas,
+            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
+            gasLimit: gasPrices.gasLimit,
+          })
+          .catch(() => 0),
+        contract
+          ._getOraclePrice({
+            maxFeePerGas: gasPrices.maxFeePerGas,
+            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
+            gasLimit: gasPrices.gasLimit,
+          })
+          .catch(() => 0),
       ]);
 
       return {
@@ -297,12 +381,18 @@ export const contractService = {
 
   async calculatePnL(marketId: string, position: Position): Promise<number> {
     try {
-      const contract = getContract(marketId);
-      const overrides =
-        (await contract.populateTransaction.defaultOverrides?.()) || {};
+      const contract = await getContract(marketId);
+      const gasPrices = await getNetworkGasPrices();
+
+      // Use gas settings directly
       const currentPrice = await contract
-        ._getOraclePrice({ ...overrides })
+        ._getOraclePrice({
+          maxFeePerGas: gasPrices.maxFeePerGas,
+          maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
+          gasLimit: gasPrices.gasLimit,
+        })
         .catch(() => 0);
+
       const pnl =
         position.type === PositionType.LONG
           ? (Number(currentPrice) / 1e18 - position.entryPrice) *
