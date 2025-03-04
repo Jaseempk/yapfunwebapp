@@ -2,7 +2,7 @@
 
 import { redis, CACHE_PREFIX } from "../config/cache";
 import { KOLService } from "./kol";
-import { KaitoKOL, KOLAPIResponse, Duration } from "../types/kol";
+import { KaitoKOL, Duration } from "../types/kol";
 
 export class MarketCycleService {
   private kolService: KOLService;
@@ -37,8 +37,8 @@ export class MarketCycleService {
         pipeline.hset(cycleKey, kol.user_id, JSON.stringify(kol));
       });
       
-      // Set expiration for 4 days (slightly longer than cycle to ensure data availability)
-      pipeline.expire(cycleKey, 4 * 24 * 60 * 60);
+      // Set expiration for 3 days (slightly longer than cycle to ensure data availability)
+      pipeline.expire(cycleKey, 3 * 24 * 60 * 60);
       
       await pipeline.exec();
       
@@ -72,7 +72,7 @@ export class MarketCycleService {
       });
       
       // Reset expiration time
-      pipeline.expire(cycleKey, 4 * 24 * 60 * 60);
+      pipeline.expire(cycleKey, 3 * 24 * 60 * 60);
       
       await pipeline.exec();
       

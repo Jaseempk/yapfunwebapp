@@ -1,4 +1,4 @@
-export const obfCA = "0xCFc9324E46342dba4a30AE254f3c70C22D5F81e8";
+export const obfCA = "0x7627F934F4f32fd34C1eCb1ec938bf64b0149Aa9";
 
 export const obFAbi = [
   {

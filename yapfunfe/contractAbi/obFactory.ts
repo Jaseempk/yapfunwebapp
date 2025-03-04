@@ -1,4 +1,4 @@
-export const obfCA = "0xBaDdB642d039421d9307cc0Eb8FfA24569a695AB";
+export const obfCA = "0x7627F934F4f32fd34C1eCb1ec938bf64b0149Aa9";
 export const obFAbi = [
   {
     inputs: [{ internalType: "address", name: "_yapEscrow", type: "address" }],
@@ -16,6 +16,7 @@ export const obFAbi = [
   },
   { inputs: [], name: "YOBF__InvalidKolId", type: "error" },
   { inputs: [], name: "YOBF__InvalidOracle", type: "error" },
+  { inputs: [], name: "YOBF__KOLOrderBookAlreadyExist", type: "error" },
   {
     anonymous: false,
     inputs: [

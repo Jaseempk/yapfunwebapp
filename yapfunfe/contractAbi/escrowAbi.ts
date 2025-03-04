@@ -1,4 +1,4 @@
-export const escrowCA = "0x5eC6fCc1A69a82fa2deE1cCacb8E08147419810C";
+export const escrowCA = "0xa55b6f0BC1Ef608393678530C179D19715B75e7c";
 export const escrowAbi = [
   {
     inputs: [
