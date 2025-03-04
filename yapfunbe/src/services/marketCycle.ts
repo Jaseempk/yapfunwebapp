@@ -1,155 +1,146 @@
-// src/services/marketCycle.ts
+import { ethers } from "ethers";
+import {
+  KOLData,
+  MarketCycle,
+  CrashedOutKOL,
+  MarketPosition,
+  CycleStatus,
+} from "../types/marketCycle";
+import { provider } from "./contract";
+import { orderBookAbi } from "../abi/orderBook";
 
-import { redis, CACHE_PREFIX } from "../config/cache";
-import { KOLService } from "./kol";
-import { KaitoKOL, Duration } from "../types/kol";
+const CYCLE_DURATION = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 
-export class MarketCycleService {
-  private kolService: KOLService;
-  
-  constructor() {
-    this.kolService = new KOLService();
+class MarketCycleService {
+  private currentCycle: MarketCycle | null = null;
+  private marketPositions: Map<string, MarketPosition> = new Map();
+  private cycleStatus: CycleStatus = CycleStatus.NOT_STARTED;
+
+  // Initialize a new market cycle
+  async initializeCycle(
+    firstMarketAddress: string,
+    initialKols: KOLData[]
+  ): Promise<void> {
+    const now = Date.now();
+    this.currentCycle = {
+      id: now.toString(),
+      startTime: now,
+      endTime: now + CYCLE_DURATION,
+      activeKols: initialKols,
+      crashedOutKols: [],
+    };
+    this.cycleStatus = CycleStatus.ACTIVE;
+
+    // Initialize first market position tracking
+    this.marketPositions.set(firstMarketAddress, {
+      marketAddress: firstMarketAddress,
+      cycleId: this.currentCycle.id,
+      activeTokenIds: [],
+      isActive: true,
+    });
   }
-  
-  // Generate a unique key for each market cycle
-  private generateMarketCycleKey(cycleId: string): string {
-    return `${CACHE_PREFIX.MARKET}cycle:${cycleId}:kols`;
+
+  // Update KOLs based on new Kaito data
+  async updateKols(newTopKols: KOLData[]): Promise<void> {
+    if (!this.currentCycle || this.cycleStatus !== CycleStatus.ACTIVE) {
+      throw new Error("No active cycle");
+    }
+
+    const currentKolIds = new Set(
+      this.currentCycle.activeKols.map((k) => k.id)
+    );
+    const newKolIds = new Set(newTopKols.map((k) => k.id));
+
+    // Find KOLs who fell out of top 100
+    const crashedOutKols = this.currentCycle.activeKols
+      .filter((kol) => {
+        return kol.marketAddress && !newKolIds.has(kol.id);
+      })
+      .map((kol) => ({
+        ...kol,
+        marketAddress: kol.marketAddress!,
+        crashedOutAt: Date.now(),
+      }));
+
+    // Remove KOLs who came back to top 100 from crashed out list
+    this.currentCycle.crashedOutKols = this.currentCycle.crashedOutKols.filter(
+      (kol) => !newKolIds.has(kol.id)
+    );
+
+    // Add new crashed out KOLs
+    this.currentCycle.crashedOutKols.push(...crashedOutKols);
+
+    // Update active KOLs list
+    this.currentCycle.activeKols = newTopKols;
   }
-  
-  // Initialize a new market cycle with fresh data
-  async initializeMarketCycle(cycleId: string): Promise<void> {
-    try {
-      // Fetch initial data from Kaito API
-      const response = await this.kolService.getTopKOLs(
-        Duration.SEVEN_DAYS,
-        "",
-        100
+
+  // Track new position for a market
+  async trackPosition(marketAddress: string, tokenId: number): Promise<void> {
+    const position = this.marketPositions.get(marketAddress);
+    if (position) {
+      position.activeTokenIds.push(tokenId);
+      this.marketPositions.set(marketAddress, position);
+    }
+  }
+
+  // Remove position when closed
+  async removePosition(marketAddress: string, tokenId: number): Promise<void> {
+    const position = this.marketPositions.get(marketAddress);
+    if (position) {
+      position.activeTokenIds = position.activeTokenIds.filter(
+        (id) => id !== tokenId
       );
-      
-      // Store the data in Redis with the cycle ID
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Create a hash map of user_id -> serialized KOL data
-      const pipeline = redis.pipeline();
-      
-      // Store each KOL by user_id for easy lookup and updates
-      response.data.data.forEach(kol => {
-        pipeline.hset(cycleKey, kol.user_id, JSON.stringify(kol));
-      });
-      
-      // Set expiration for 3 days (slightly longer than cycle to ensure data availability)
-      pipeline.expire(cycleKey, 3 * 24 * 60 * 60);
-      
-      await pipeline.exec();
-      
-      console.log(`[Market Cycle] Initialized cycle ${cycleId} with ${response.data.data.length} KOLs`);
-    } catch (error) {
-      console.error(`[Market Cycle] Error initializing cycle ${cycleId}:`, error);
-      throw error;
+      this.marketPositions.set(marketAddress, position);
     }
   }
-  
-  // Update market cycle data with hourly API call
-  async updateMarketCycleData(cycleId: string): Promise<void> {
-    try {
-      // Fetch latest data
-      const response = await this.kolService.getTopKOLs(
-        Duration.SEVEN_DAYS,
-        "",
-        100
-      );
-      
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Get existing KOL IDs
-      const existingKolIds = await redis.hkeys(cycleKey);
-      
-      // Update existing KOLs and add new ones
-      const pipeline = redis.pipeline();
-      
-      response.data.data.forEach(kol => {
-        pipeline.hset(cycleKey, kol.user_id, JSON.stringify(kol));
-      });
-      
-      // Reset expiration time
-      pipeline.expire(cycleKey, 3 * 24 * 60 * 60);
-      
-      await pipeline.exec();
-      
-      // Count new additions
-      const newKolCount = response.data.data.filter(
-        kol => !existingKolIds.includes(kol.user_id)
-      ).length;
-      
-      console.log(`[Market Cycle] Updated cycle ${cycleId}, added ${newKolCount} new KOLs`);
-    } catch (error) {
-      console.error(`[Market Cycle] Error updating cycle ${cycleId}:`, error);
-      throw error;
-    }
+
+  // Get all active positions for a market
+  getActivePositions(marketAddress: string): number[] {
+    return this.marketPositions.get(marketAddress)?.activeTokenIds || [];
   }
-  
-  // Get all KOLs for a specific market cycle
-  async getMarketCycleKOLs(cycleId: string): Promise<KaitoKOL[]> {
-    try {
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Get all KOL data from the hash
-      const kolData = await redis.hvals(cycleKey);
-      
-      // Parse the JSON data
-      return kolData.map(data => JSON.parse(data));
-    } catch (error) {
-      console.error(`[Market Cycle] Error getting KOLs for cycle ${cycleId}:`, error);
-      throw error;
-    }
+
+  // Get crashed out KOLs that need data updates
+  getCrashedOutKols(): CrashedOutKOL[] {
+    return this.currentCycle?.crashedOutKols || [];
   }
-  
-  // Get a specific KOL from a market cycle
-  async getMarketCycleKOL(cycleId: string, kolId: string): Promise<KaitoKOL | null> {
-    try {
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Get the specific KOL data
-      const kolData = await redis.hget(cycleKey, kolId);
-      
-      if (!kolData) return null;
-      
-      // Parse the JSON data
-      return JSON.parse(kolData);
-    } catch (error) {
-      console.error(`[Market Cycle] Error getting KOL ${kolId} for cycle ${cycleId}:`, error);
-      throw error;
-    }
+
+  // Check if cycle needs to end
+  async checkCycleEnd(): Promise<boolean> {
+    if (!this.currentCycle) return false;
+    return Date.now() >= this.currentCycle.endTime;
   }
-  
-  // End a market cycle by removing its data
-  async endMarketCycle(cycleId: string): Promise<void> {
-    try {
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Delete the hash
-      await redis.del(cycleKey);
-      
-      console.log(`[Market Cycle] Ended cycle ${cycleId}`);
-    } catch (error) {
-      console.error(`[Market Cycle] Error ending cycle ${cycleId}:`, error);
-      throw error;
-    }
+
+  // Start cycle end process
+  async startCycleEnd(): Promise<void> {
+    if (this.cycleStatus !== CycleStatus.ACTIVE) return;
+    this.cycleStatus = CycleStatus.ENDING;
   }
-  
-  // Check if a market cycle exists
-  async marketCycleExists(cycleId: string): Promise<boolean> {
-    try {
-      const cycleKey = this.generateMarketCycleKey(cycleId);
-      
-      // Check if the key exists
-      const exists = await redis.exists(cycleKey);
-      
-      return exists === 1;
-    } catch (error) {
-      console.error(`[Market Cycle] Error checking if cycle ${cycleId} exists:`, error);
-      throw error;
-    }
+
+  // Reset market for new cycle
+  async resetMarket(
+    marketAddress: string,
+    mindshares: number[]
+  ): Promise<void> {
+    const contract = new ethers.Contract(marketAddress, orderBookAbi, provider);
+    await contract.resetMarket(mindshares);
+
+    // Clear position tracking for this market
+    this.marketPositions.set(marketAddress, {
+      marketAddress,
+      cycleId: this.currentCycle?.id || "",
+      activeTokenIds: [],
+      isActive: true,
+    });
+  }
+
+  // Get current cycle status
+  getCycleStatus(): CycleStatus {
+    return this.cycleStatus;
+  }
+
+  // Get current cycle data
+  getCurrentCycle(): MarketCycle | null {
+    return this.currentCycle;
   }
 }
 

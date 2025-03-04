@@ -10,23 +10,66 @@ import {
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
 
+// Gas price optimization settings
+const DEFAULT_GAS_SETTINGS = {
+  maxPriorityFeePerGas: ethers.utils.parseUnits("0.001", "gwei"), // 0.001 Gwei priority fee
+  maxFeePerGas: ethers.utils.parseUnits("0.1", "gwei"), // 0.1 Gwei max fee
+  gasLimit: 2000000, // 2M gas limit
+};
+
 // Create a singleton provider instance
-const provider = new ethers.providers.JsonRpcProvider({
-  url:
-    process.env.RPC_URL ||
+export const provider = new ethers.providers.JsonRpcProvider(
+  process.env.RPC_URL ||
     "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327",
-  timeout: 30000, // 30 seconds timeout
-  throttleLimit: 1,
-});
+  "base-sepolia" // Network name
+);
+
+// Function to get current network gas prices
+async function getNetworkGasPrices() {
+  try {
+    const feeData = await provider.getFeeData();
+    return {
+      maxFeePerGas: feeData.maxFeePerGas || DEFAULT_GAS_SETTINGS.maxFeePerGas,
+      maxPriorityFeePerGas:
+        feeData.maxPriorityFeePerGas ||
+        DEFAULT_GAS_SETTINGS.maxPriorityFeePerGas,
+      gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
+    };
+  } catch (error) {
+    console.warn(
+      "Error fetching network gas prices, using default settings:",
+      error
+    );
+    return DEFAULT_GAS_SETTINGS;
+  }
+}
 
 // Cache contract instances
 const contractCache = new Map<string, ethers.Contract>();
 
-// Helper to get or create contract instance
+// Helper to get or create contract instance with gas optimization
 const getContract = (marketAddress: string): ethers.Contract => {
   if (!contractCache.has(marketAddress)) {
     const contract = new ethers.Contract(marketAddress, orderBookAbi, provider);
-    contractCache.set(marketAddress, contract);
+
+    // Add overrides for gas optimization
+    const overridableContract = contract as ethers.Contract & {
+      populateTransaction: typeof contract.populateTransaction & {
+        defaultOverrides?: () => Promise<ethers.PayableOverrides>;
+      };
+    };
+
+    // Set default transaction overrides
+    overridableContract.populateTransaction.defaultOverrides = async () => {
+      const gasPrices = await getNetworkGasPrices();
+      return {
+        maxFeePerGas: gasPrices.maxFeePerGas,
+        maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
+        gasLimit: gasPrices.gasLimit,
+      };
+    };
+
+    contractCache.set(marketAddress, overridableContract);
   }
   return contractCache.get(marketAddress)!;
 };
@@ -46,7 +89,10 @@ export const contractService = {
       while (retries > 0) {
         try {
           const contract = getContract(marketAddress);
-          const volume = await contract.marketVolume();
+          const overrides =
+            (await contract.populateTransaction.defaultOverrides?.()) || {};
+          const tx = await contract.populateTransaction.marketVolume();
+          const volume = await contract.marketVolume({ ...overrides, ...tx });
           return Number(volume) / 1e6 || 0;
         } catch (error: any) {
           retries--;
@@ -70,9 +116,12 @@ export const contractService = {
   async getMarketData(marketId: string): Promise<Market> {
     try {
       const contract = getContract(marketId);
+      const overrides =
+        (await contract.populateTransaction.defaultOverrides?.()) || {};
+
       const [volume, price] = await Promise.all([
-        contract.marketVolume().catch(() => 0),
-        contract._getOraclePrice().catch(() => 0),
+        contract.marketVolume({ ...overrides }).catch(() => 0),
+        contract._getOraclePrice({ ...overrides }).catch(() => 0),
       ]);
 
       return {
@@ -249,7 +298,11 @@ export const contractService = {
   async calculatePnL(marketId: string, position: Position): Promise<number> {
     try {
       const contract = getContract(marketId);
-      const currentPrice = await contract._getOraclePrice().catch(() => 0);
+      const overrides =
+        (await contract.populateTransaction.defaultOverrides?.()) || {};
+      const currentPrice = await contract
+        ._getOraclePrice({ ...overrides })
+        .catch(() => 0);
       const pnl =
         position.type === PositionType.LONG
           ? (Number(currentPrice) / 1e18 - position.entryPrice) *
