@@ -1,11 +1,45 @@
 import { newMockEvent } from "matchstick-as"
 import { ethereum, BigInt, Bytes, Address } from "@graphprotocol/graph-ts"
 import {
+  CrashedOutKolDataUpdated,
   KOLDataUpdated,
   RoleAdminChanged,
   RoleGranted,
   RoleRevoked
 } from "../generated/YapOracle/YapOracle"
+
+export function createCrashedOutKolDataUpdatedEvent(
+  kolId: BigInt,
+  rank: BigInt,
+  mindshareScore: BigInt,
+  timestamp: BigInt
+): CrashedOutKolDataUpdated {
+  let crashedOutKolDataUpdatedEvent =
+    changetype<CrashedOutKolDataUpdated>(newMockEvent())
+
+  crashedOutKolDataUpdatedEvent.parameters = new Array()
+
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam("kolId", ethereum.Value.fromUnsignedBigInt(kolId))
+  )
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam("rank", ethereum.Value.fromUnsignedBigInt(rank))
+  )
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "mindshareScore",
+      ethereum.Value.fromUnsignedBigInt(mindshareScore)
+    )
+  )
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "timestamp",
+      ethereum.Value.fromUnsignedBigInt(timestamp)
+    )
+  )
+
+  return crashedOutKolDataUpdatedEvent
+}
 
 export function createKOLDataUpdatedEvent(
   kolId: BigInt,

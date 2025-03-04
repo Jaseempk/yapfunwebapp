@@ -1,3 +1,14 @@
+type CrashedOutKolDataUpdated @entity(immutable: true) {
+  id: Bytes!
+  kolId: BigInt! # uint256
+  rank: BigInt! # uint256
+  mindshareScore: BigInt! # uint256
+  timestamp: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
 type KOLDataUpdated @entity(immutable: true) {
   id: Bytes!
   kolId: BigInt! # uint256

@@ -1,15 +1,35 @@
 import {
+  CrashedOutKolDataUpdated as CrashedOutKolDataUpdatedEvent,
   KOLDataUpdated as KOLDataUpdatedEvent,
   RoleAdminChanged as RoleAdminChangedEvent,
   RoleGranted as RoleGrantedEvent,
   RoleRevoked as RoleRevokedEvent
 } from "../generated/YapOracle/YapOracle"
 import {
+  CrashedOutKolDataUpdated,
   KOLDataUpdated,
   RoleAdminChanged,
   RoleGranted,
   RoleRevoked
 } from "../generated/schema"
+
+export function handleCrashedOutKolDataUpdated(
+  event: CrashedOutKolDataUpdatedEvent
+): void {
+  let entity = new CrashedOutKolDataUpdated(
+    event.transaction.hash.concatI32(event.logIndex.toI32())
+  )
+  entity.kolId = event.params.kolId
+  entity.rank = event.params.rank
+  entity.mindshareScore = event.params.mindshareScore
+  entity.timestamp = event.params.timestamp
+
+  entity.blockNumber = event.block.number
+  entity.blockTimestamp = event.block.timestamp
+  entity.transactionHash = event.transaction.hash
+
+  entity.save()
+}
 
 export function handleKOLDataUpdated(event: KOLDataUpdatedEvent): void {
   let entity = new KOLDataUpdated(

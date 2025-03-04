@@ -8,14 +8,15 @@ dataSources:
     name: YapOracle
     network: base-sepolia
     source:
-      address: "0x8ad244404B40882A3447ABF74A78227bCD15E74A"
+      address: "0xDa1B4fFfAF462D5c39c2c06b33b1d400c0E04aB7"
       abi: YapOracle
-      startBlock: 21447155
+      startBlock: 22617618
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
+        - CrashedOutKolDataUpdated
         - KOLDataUpdated
         - RoleAdminChanged
         - RoleGranted
@@ -24,6 +25,8 @@ dataSources:
         - name: YapOracle
           file: ./abis/YapOracle.json
       eventHandlers:
+        - event: CrashedOutKolDataUpdated(indexed uint256,uint256,uint256,uint256)
+          handler: handleCrashedOutKolDataUpdated
         - event: KOLDataUpdated(indexed uint256,uint256,uint256,uint256)
           handler: handleKOLDataUpdated
         - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
