@@ -17,6 +17,7 @@ import {
   simulateContract,
   writeContract,
   getAccount,
+  waitForTransaction,
 } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
 import { parseUnits, erc20Abi } from "viem";
@@ -30,6 +31,7 @@ interface DepositModalProps {
   onClose: () => void;
   onDeposit: (amount: string) => Promise<{ success: boolean; message: string }>;
   maxAmount: string;
+  refreshBalances: () => Promise<void>;
 }
 const account = getAccount(config);
 
@@ -38,6 +40,7 @@ export default function DepositModal({
   onClose,
   onDeposit,
   maxAmount,
+  refreshBalances,
 }: DepositModalProps) {
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -118,14 +121,16 @@ export default function DepositModal({
         throw new Error("Please connect your wallet");
       }
 
+      // First handle USDC approval
       const approvalSuccess = await handleApproveUsdc();
       if (!approvalSuccess) {
         throw new Error("USDC approval failed");
       }
 
-      const response = await onDeposit(amount);
-      console.log(`Depositing ${amount} USDC`);
+      // Wait for 2 seconds after approval to ensure transaction is confirmed
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Then handle the deposit
       const { request } = await simulateContract(config, {
         abi: escrowAbi,
         address: escrowCA,
@@ -133,18 +138,28 @@ export default function DepositModal({
         args: [parseUnits(amount, 6)],
       });
 
-      const result = await writeContract(config, request);
-      console.log("Deposit result:", result);
+      const hash = await writeContract(config, request);
+      console.log("Deposit transaction hash:", hash);
 
-      setResult(response);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An error occurred during the deposit";
+      // Wait for the transaction to be mined
+      const receipt = await waitForTransaction(config, {
+        hash,
+        confirmations: 1,
+      });
+      console.log("Deposit receipt:", receipt);
+
+      setResult({
+        success: true,
+        message: "Deposit successful!",
+      });
+      
+      // Refresh balances after successful deposit
+      await refreshBalances();
+    } catch (error: any) {
+      console.error("Deposit error:", error);
       setResult({
         success: false,
-        message: errorMessage,
+        message: error?.message || "An error occurred during the deposit",
       });
     }
     setIsLoading(false);
@@ -239,7 +254,9 @@ export default function DepositModal({
                 ) : (
                   <div className="text-red-500">
                     <AlertTriangle className="w-16 h-16 mx-auto mb-4" />
-                    <p className="text-xl font-semibold">{result.message}</p>
+                    <p className="text-base font-semibold break-words max-h-[200px] overflow-y-auto">
+                      {result.message}
+                    </p>
                   </div>
                 )}
                 <Button onClick={onClose} className="mt-6 rounded-xl">

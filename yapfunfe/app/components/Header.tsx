@@ -33,7 +33,7 @@ export default function Header() {
 
   const handleProtectedNavigation = async (path: string) => {
     try {
-      // If not connected, try to connect first
+      // First ensure we have a wallet connected
       if (!isConnected) {
         const hasConnected = await ensureWalletConnected();
         if (!hasConnected) {
@@ -42,9 +42,19 @@ export default function Header() {
         }
       }
 
-      // If we get here, we're either already connected or just connected
-      // Use direct window navigation for reliability
-      window.location.href = path;
+      // Get the current address after ensuring connection
+      const targetAddress = address || account.address;
+      if (!account.address) {
+        toast.error("No wallet address found");
+        return;
+      }
+
+      // Use Next.js router for navigation
+      if (path.includes('/profile')) {
+        router.push(`/profile/${account.address}`);
+      } else {
+        router.push(path);
+      }
       
     } catch (error) {
       console.error("Navigation error:", error);
@@ -131,14 +141,20 @@ export default function Header() {
         <div className="flex items-center space-x-4">
           {(isConnected || account.address) && (
             <>
-              <button
-                onClick={() => setIsDepositModalOpen(true)}
-                className="px-4 py-2 rounded-lg transition-colors hover:bg-secondary/50 text-sm font-medium"
-              >
-                ${Number(inHouseBalance).toFixed(2)}
-              </button>
-              <button
-                onClick={() => handleProtectedNavigation(`/profile/${currentAddress}`)}
+              <div className="relative group">
+                <button
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="px-4 py-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-fuchsia-500/25"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-medium text-white/80">User Balance</span>
+                    <span className="text-sm font-bold text-white">${Number(inHouseBalance).toFixed(2)}</span>
+                  </div>
+                </button>
+                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+              </div>
+              <Link
+                href="/profile"
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   isActive("/profile")
                     ? "bg-secondary text-secondary-foreground"
@@ -146,7 +162,7 @@ export default function Header() {
                 } rounded-xl`}
               >
                 Profile
-              </button>
+              </Link>
             </>
           )}
           <ConnectButton />
@@ -158,6 +174,7 @@ export default function Header() {
         onClose={() => setIsDepositModalOpen(false)}
         onDeposit={handleDeposit}
         maxAmount={userBalance}
+        refreshBalances={refreshBalances}
       />
     </motion.header>
   );

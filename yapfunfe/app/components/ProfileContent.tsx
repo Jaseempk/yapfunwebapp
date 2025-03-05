@@ -175,6 +175,7 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
             onClose={() => setIsDepositModalOpen(false)}
             onDeposit={handleDeposit}
             maxAmount={userBalance}
+            refreshBalances={refreshBalances}
           />
           <WithdrawModal
             isOpen={isWithdrawModalOpen}
