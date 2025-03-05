@@ -55,7 +55,7 @@ export default function MarketDetail({
   kol,
 }: MarketDetailProps) {
   const [timeRange, setTimeRange] =
-    useState<(typeof timeRanges)[number]["value"]>("1d");
+    useState<(typeof timeRanges)[number]["value"]>("1h");
   const [activeTab, setActiveTab] = useState<"long" | "short">("long");
   const [creatorRevenue, setCreatorRevenue] = useState<string>("0.00");
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
@@ -178,10 +178,6 @@ export default function MarketDetail({
 
               {/* Trading Interface */}
               <div className="space-y-3 sm:space-y-4">
-                <CreatorRevenue
-                  revenue={creatorRevenue}
-                  isLoading={isLoadingRevenue}
-                />
 
                 <TradingInterface
                   marketAddress={kol.marketAddress}
@@ -194,6 +190,10 @@ export default function MarketDetail({
                 <OrderBookSection
                   marketAddress={kol.marketAddress}
                   currentMindshare={kol.mindshare}
+                />
+                <CreatorRevenue
+                  revenue={creatorRevenue}
+                  isLoading={isLoadingRevenue}
                 />
               </div>
             </div>

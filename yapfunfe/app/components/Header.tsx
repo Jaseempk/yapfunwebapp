@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "../providers/UserProvider";
@@ -10,12 +10,16 @@ import { config } from "../providers/Web3Providers";
 import { getAccount } from "@wagmi/core";
 import HowItWorksModal from "./HowItWorksModal";
 import { toast } from "sonner";
+import { useBalances } from "../hooks/useBalances";
+import DepositModal from "./DepositModal";
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const account = getAccount(config);
   const { address, isConnected, ensureWalletConnected } = useUser();
+  const { inHouseBalance, userBalance, refreshBalances } = useBalances();
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
   const isActive = useCallback(
     (path: string) => {
@@ -29,31 +33,40 @@ export default function Header() {
 
   const handleProtectedNavigation = async (path: string) => {
     try {
-      console.log("Attempting navigation to:", path);
-      console.log("Current connection status:", { isConnected, address: currentAddress });
-      
-      // If already connected, navigate directly
-      if (isConnected && currentAddress) {
-        console.log("User is connected, navigating directly");
-        router.push(path);
-        return;
+      // If not connected, try to connect first
+      if (!isConnected) {
+        const hasConnected = await ensureWalletConnected();
+        if (!hasConnected) {
+          toast.error("Please connect your wallet first");
+          return;
+        }
       }
 
-      // Otherwise, check connection
-      const hasAccess = await ensureWalletConnected();
-      console.log("Wallet connection check result:", hasAccess);
+      // If we get here, we're either already connected or just connected
+      // Use direct window navigation for reliability
+      window.location.href = path;
       
-      if (hasAccess) {
-        console.log("Access granted, navigating to:", path);
-        // Force a hard navigation
-        window.location.href = path;
-      } else {
-        console.log("Access denied, showing toast");
-        toast.error("Please connect your wallet first");
-      }
     } catch (error) {
       console.error("Navigation error:", error);
       toast.error("Navigation failed. Please try again.");
+    }
+  };
+
+  const handleDeposit = async (
+    amount: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      // Here we're just passing through the deposit request
+      // The actual deposit logic is handled in the DepositModal
+      return {
+        success: true,
+        message: "Deposit initiated successfully",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Deposit failed",
+      };
     }
   };
 
@@ -116,21 +129,36 @@ export default function Header() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {(isConnected || account.address) && currentAddress && (
-            <button
-              onClick={() => handleProtectedNavigation(`/profile/${currentAddress}`)}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                isActive("/profile")
-                  ? "bg-secondary text-secondary-foreground"
-                  : "hover:bg-secondary/50"
-              } rounded-xl`}
-            >
-              Profile
-            </button>
+          {(isConnected || account.address) && (
+            <>
+              <button
+                onClick={() => setIsDepositModalOpen(true)}
+                className="px-4 py-2 rounded-lg transition-colors hover:bg-secondary/50 text-sm font-medium"
+              >
+                ${Number(inHouseBalance).toFixed(2)}
+              </button>
+              <button
+                onClick={() => handleProtectedNavigation(`/profile/${currentAddress}`)}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  isActive("/profile")
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary/50"
+                } rounded-xl`}
+              >
+                Profile
+              </button>
+            </>
           )}
           <ConnectButton />
         </div>
       </nav>
+
+      <DepositModal
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)}
+        onDeposit={handleDeposit}
+        maxAmount={userBalance}
+      />
     </motion.header>
   );
 }

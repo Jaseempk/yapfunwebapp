@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useContractEvents } from "./useContractEvents";
+// import { useContractEvents } from "./useContractEvents";
+import { useSubgraphEvents } from "./useSubgraphEvents";
 import { Address } from "viem";
 
 interface MarketEvent {
@@ -28,10 +29,28 @@ export function useMarketEvents(
     sells: [],
   });
   const [recentEvents, setRecentEvents] = useState<MarketEvent[]>([]);
-  const { events, isLoading, error } = useContractEvents(
-    marketAddress,
-    userAddress
-  );
+  
+  // Try to use subgraph first
+  const {
+    events: subgraphEvents,
+    isLoading: isLoadingSubgraph,
+    error: subgraphError,
+  } = useSubgraphEvents(marketAddress, userAddress);
+
+  // Fallback to RPC events if subgraph fails
+  // const {
+  //   events: rpcEvents,
+  //   isLoading: isLoadingRpc,
+  //   error: rpcError,
+  // } = useContractEvents(
+  //   subgraphError ? marketAddress : undefined,
+  //   subgraphError ? userAddress : undefined
+  // );
+
+  // Use either subgraph or RPC events
+  const events = subgraphEvents;
+  const isLoading = isLoadingSubgraph ;
+  const error = subgraphError ;
 
   // Process events and update order book
   useEffect(() => {

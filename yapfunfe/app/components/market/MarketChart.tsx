@@ -116,7 +116,7 @@ export default function MarketChart({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4">
         <div className="space-y-1">
           <div className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            {mindshare}%
+            {mindshare.toFixed(4)}%
             <span
               className={
                 activeTab === "long" ? "text-green-500" : "text-red-500"
