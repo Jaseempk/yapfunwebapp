@@ -19,7 +19,7 @@ export class MarketDeploymentService {
     if (!MarketDeploymentService.instance) {
       const rpcUrl =
         process.env.RPC_URL ||
-        "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327";
+        "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI";
       const provider = new ethers.providers.JsonRpcProvider({
         url: rpcUrl,
         timeout: 30000, // 30 seconds
@@ -48,6 +48,52 @@ export class MarketDeploymentService {
     this.provider = provider;
     this.signer = signer;
     this.factoryContract = new ethers.Contract(obfCA, obFAbi, this.signer);
+  }
+
+  private async getOptimizedGasPrice(): Promise<{
+    maxFeePerGas: BigNumber;
+    maxPriorityFeePerGas: BigNumber;
+  }> {
+    try {
+      // Get the latest fee data
+      const feeData = await this.provider.getFeeData();
+
+      if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
+        throw new Error("EIP-1559 fee data not available");
+      }
+
+      // Calculate a slightly lower max fee to optimize costs
+      // Using 80% of the suggested maxFeePerGas
+      const maxFeePerGas = feeData.maxFeePerGas.mul(80).div(100);
+
+      // Use a lower priority fee as Base Sepolia is not congested
+      // Start with 0.001 Gwei (1000000 wei)
+      const minPriorityFee = ethers.utils.parseUnits("0.001", "gwei");
+      const maxPriorityFeePerGas = BigNumber.from(minPriorityFee);
+
+      console.log(`[Gas Optimization] Suggested fees:`, {
+        maxFeePerGas: ethers.utils.formatUnits(maxFeePerGas, "gwei"),
+        maxPriorityFeePerGas: ethers.utils.formatUnits(
+          maxPriorityFeePerGas,
+          "gwei"
+        ),
+      });
+
+      return {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      };
+    } catch (error) {
+      console.error(
+        "[Gas Optimization] Error getting optimized gas price:",
+        error
+      );
+      // Fallback to very low gas prices if EIP-1559 is not available
+      return {
+        maxFeePerGas: ethers.utils.parseUnits("0.001", "gwei"),
+        maxPriorityFeePerGas: ethers.utils.parseUnits("0.001", "gwei"),
+      };
+    }
   }
 
   private async withRetry<T>(operation: RetryableOperation<T>): Promise<T> {
@@ -82,7 +128,7 @@ export class MarketDeploymentService {
       return marketAddress !== "0x0000000000000000000000000000000000000000";
     } catch (error) {
       console.error("Error checking market existence:", error);
-      return false; // Return false instead of throwing to handle gracefully
+      return false;
     }
   }
 
@@ -121,12 +167,28 @@ export class MarketDeploymentService {
         `[Market Service] Deploying market for KOL ID (BigNumber): ${kolIdBN.toString()}`
       );
 
+      // Get optimized gas prices
+      const { maxFeePerGas, maxPriorityFeePerGas } =
+        await this.getOptimizedGasPrice();
+
+      // Prepare transaction with optimized gas settings
       const tx = await this.withRetry<ContractTransaction>(
         async () =>
-          await this.factoryContract.initialiseMarket(kolIdBN, yapOracleCA)
+          await this.factoryContract.initialiseMarket(kolIdBN, yapOracleCA, {
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+          })
       );
 
-      console.log(`[Market Service] Waiting for transaction: ${tx.hash}`);
+      console.log(`[Market Service] Deploying market with transaction:`, {
+        hash: tx.hash,
+        maxFeePerGas: ethers.utils.formatUnits(maxFeePerGas, "gwei"),
+        maxPriorityFeePerGas: ethers.utils.formatUnits(
+          maxPriorityFeePerGas,
+          "gwei"
+        ),
+      });
+
       const receipt = await tx.wait();
 
       // Get the market address from the event logs
@@ -143,6 +205,13 @@ export class MarketDeploymentService {
       }
 
       console.log(`Market deployed for KOL ${kolId} at ${marketAddress}`);
+      console.log(`Gas used: ${receipt.gasUsed.toString()}`);
+      console.log(
+        `Effective gas price: ${ethers.utils.formatUnits(
+          receipt.effectiveGasPrice,
+          "gwei"
+        )} Gwei`
+      );
 
       // Get KOL details for the event
       const kol = await kolService.getKOL(kolId);

@@ -90,7 +90,7 @@ export default function MarketDetail({
         });
 
         // Creator gets half of the total fee collected
-        const creatorFee = Number(totalFeeCollected) / 2 / 1e6;
+        const creatorFee = Number(totalFeeCollected) / 2;
         setCreatorRevenue(creatorFee.toFixed(2));
       } catch (err) {
         console.error("Error fetching creator revenue:", err);

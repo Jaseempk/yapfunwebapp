@@ -65,7 +65,7 @@ export function useBalances() {
 
   useEffect(() => {
     refreshBalances();
-    const interval = setInterval(refreshBalances, 10000); // Refresh every 10 seconds
+    const interval = setInterval(refreshBalances, 2000000); // Refresh every 20 minutes
     return () => clearInterval(interval);
   }, [refreshBalances]);
 

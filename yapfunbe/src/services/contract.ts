@@ -10,17 +10,17 @@ import {
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
 
-// Gas price optimization settings
+// Gas price optimization settings (only needed for state-changing transactions)
 const DEFAULT_GAS_SETTINGS = {
-  maxPriorityFeePerGas: ethers.utils.parseUnits("0.001", "gwei"), // 0.001 Gwei priority fee
-  maxFeePerGas: ethers.utils.parseUnits("0.1", "gwei"), // 0.1 Gwei max fee
-  gasLimit: 2000000, // 2M gas limit
+  maxPriorityFeePerGas: ethers.utils.parseUnits("0.001", "gwei"),
+  maxFeePerGas: ethers.utils.parseUnits("0.1", "gwei"),
+  gasLimit: 2000000,
 };
 
 // List of RPC URLs in order of preference
 const RPC_URLS = [
   process.env.RPC_URL,
-  "https://base-sepolia.g.alchemy.com/v2/txntl9XYKWyIkkmj1p0JcecUKxqt9327",
+  "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI",
   "https://sepolia.base.org",
 ].filter(Boolean) as string[];
 
@@ -30,11 +30,23 @@ const network = {
   chainId: 84532,
 };
 
-const connectionInfo = {
-  url: RPC_URLS[0],
+// Provider configuration
+const PROVIDER_CONFIG = {
+  timeout: 10000, // 10 seconds
+  throttleLimit: 1,
+  maxRetries: 3,
+  retryDelay: 1000, // 1 second base delay
   headers: {
     "Accept-Encoding": "gzip, deflate, br",
   },
+};
+
+// Initialize provider with first RPC URL
+const connectionInfo = {
+  url: RPC_URLS[0],
+  timeout: PROVIDER_CONFIG.timeout,
+  throttleLimit: PROVIDER_CONFIG.throttleLimit,
+  headers: PROVIDER_CONFIG.headers,
 };
 
 export const provider = new ethers.providers.JsonRpcProvider(
@@ -42,66 +54,116 @@ export const provider = new ethers.providers.JsonRpcProvider(
   network
 );
 
-// Function to get a working provider
-async function getWorkingProvider(): Promise<ethers.providers.Provider> {
-  for (const url of RPC_URLS) {
-    try {
-      const tempProvider = new ethers.providers.JsonRpcProvider(
-        { url, headers: { "Accept-Encoding": "gzip, deflate, br" } },
-        network
-      );
-      // Test the provider with a simple call
-      await tempProvider.getBlockNumber();
-      return tempProvider;
-    } catch (error) {
-      console.warn(`Failed to connect to ${url}:`, error);
-    }
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Function to test provider connection
+async function testProvider(provider: ethers.providers.Provider): Promise<boolean> {
+  try {
+    const networkTest = provider.getNetwork();
+    const blockTest = provider.getBlockNumber();
+    
+    // Use Promise.race to implement timeout
+    const timeoutPromise = delay(PROVIDER_CONFIG.timeout);
+    const result = await Promise.race([
+      Promise.all([networkTest, blockTest]),
+      timeoutPromise.then(() => Promise.reject(new Error("Provider test timeout")))
+    ]);
+
+    return Array.isArray(result); // If we got an array, the tests passed
+  } catch (error) {
+    console.warn("Provider test failed:", error);
+    return false;
   }
-  throw new Error("All RPC endpoints failed");
 }
 
-// Function to get current network gas prices with better fallbacks
-async function getNetworkGasPrices() {
-  try {
-    // Try with the main provider first
-    try {
-      const feeData = await provider.getFeeData();
-      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-        return {
-          maxFeePerGas: feeData.maxFeePerGas,
-          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-          gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
-        };
-      }
-    } catch (mainError) {
-      console.warn("Error with main provider, trying fallbacks:", mainError);
-    }
+// Function to get a working provider with improved error handling
+async function getWorkingProvider(): Promise<ethers.providers.Provider> {
+  let lastError: Error | null = null;
+  
+  // Try each RPC URL with retries
+  for (const url of RPC_URLS) {
+    for (let attempt = 1; attempt <= PROVIDER_CONFIG.maxRetries; attempt++) {
+      try {
+        console.log(`Attempting to connect to ${url} (attempt ${attempt}/${PROVIDER_CONFIG.maxRetries})`);
+        
+        const provider = new ethers.providers.JsonRpcProvider(
+          {
+            url,
+            timeout: PROVIDER_CONFIG.timeout,
+            throttleLimit: PROVIDER_CONFIG.throttleLimit,
+            headers: PROVIDER_CONFIG.headers,
+          },
+          network
+        );
 
-    // Try with fallback providers
-    try {
-      const workingProvider = await getWorkingProvider();
-      const feeData = await workingProvider.getFeeData();
-      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-        return {
-          maxFeePerGas: feeData.maxFeePerGas,
-          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-          gasLimit: DEFAULT_GAS_SETTINGS.gasLimit,
-        };
-      }
-    } catch (fallbackError) {
-      console.warn("Error with fallback providers:", fallbackError);
-    }
+        // Test the provider
+        const isWorking = await testProvider(provider);
+        if (isWorking) {
+          console.log(`Successfully connected to ${url}`);
+          return provider;
+        }
 
-    // If all else fails, use hardcoded values based on recent network conditions
-    console.warn("Using hardcoded gas settings as last resort");
-    return DEFAULT_GAS_SETTINGS;
-  } catch (error) {
-    console.warn(
-      "Error fetching network gas prices, using default settings:",
-      error
-    );
-    return DEFAULT_GAS_SETTINGS;
+        throw new Error("Provider test failed");
+      } catch (error: any) {
+        lastError = error;
+        console.warn(
+          `Failed to connect to ${url} (attempt ${attempt}/${PROVIDER_CONFIG.maxRetries}):`,
+          error.message || error
+        );
+
+        // If this isn't the last attempt, wait before retrying
+        if (attempt < PROVIDER_CONFIG.maxRetries) {
+          const retryDelay = PROVIDER_CONFIG.retryDelay * Math.pow(2, attempt - 1);
+          await delay(retryDelay);
+        }
+      }
+    }
   }
+
+  // If we get here, all providers failed
+  throw new Error(
+    `All RPC endpoints failed. Last error: ${lastError?.message || "Unknown error"}`
+  );
+}
+
+// Cache successful provider connections
+let cachedProvider: {
+  provider: ethers.providers.Provider;
+  timestamp: number;
+} | null = null;
+const PROVIDER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Function to get a provider with caching
+async function getProvider(): Promise<ethers.providers.Provider> {
+  const now = Date.now();
+
+  // Return cached provider if it's still valid
+  if (
+    cachedProvider &&
+    now - cachedProvider.timestamp < PROVIDER_CACHE_DURATION
+  ) {
+    try {
+      // Verify the cached provider still works
+      const isWorking = await testProvider(cachedProvider.provider);
+      if (isWorking) {
+        return cachedProvider.provider;
+      }
+    } catch (error) {
+      console.warn("Cached provider failed, getting new provider");
+    }
+  }
+
+  // Get a new working provider
+  const newProvider = await getWorkingProvider();
+  
+  // Cache the new provider
+  cachedProvider = {
+    provider: newProvider,
+    timestamp: now,
+  };
+
+  return newProvider;
 }
 
 // Cache contract instances with expiry
@@ -113,7 +175,7 @@ interface CachedContract {
 const contractCache = new Map<string, CachedContract>();
 const CACHE_EXPIRY = 15 * 60 * 1000; // 15 minutes
 
-// Helper to get or create contract instance with gas optimization
+// Helper to get or create contract instance
 const getContract = async (marketAddress: string): Promise<ethers.Contract> => {
   const now = Date.now();
   const cached = contractCache.get(marketAddress);
@@ -124,7 +186,7 @@ const getContract = async (marketAddress: string): Promise<ethers.Contract> => {
   }
 
   // Get a working provider
-  const workingProvider = await getWorkingProvider();
+  const workingProvider = await getProvider();
   const contract = new ethers.Contract(
     marketAddress,
     orderBookAbi,
@@ -155,15 +217,8 @@ export const contractService = {
       while (retries > 0) {
         try {
           const contract = await getContract(marketAddress);
-          const gasPrices = await getNetworkGasPrices();
-
-          // Call the function with gas settings directly
-          const volume = await contract.marketVolume({
-            maxFeePerGas: gasPrices.maxFeePerGas,
-            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
-            gasLimit: gasPrices.gasLimit,
-          });
-
+          // No gas parameters needed for view function
+          const volume = await contract.marketVolume();
           return Number(volume) / 1e6 || 0;
         } catch (error: any) {
           retries--;
@@ -188,24 +243,11 @@ export const contractService = {
   async getMarketData(marketId: string): Promise<Market> {
     try {
       const contract = await getContract(marketId);
-      const gasPrices = await getNetworkGasPrices();
 
-      // Use gas settings directly without mixing with transaction data
+      // Call view functions without gas parameters
       const [volume, price] = await Promise.all([
-        contract
-          .marketVolume({
-            maxFeePerGas: gasPrices.maxFeePerGas,
-            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
-            gasLimit: gasPrices.gasLimit,
-          })
-          .catch(() => 0),
-        contract
-          ._getOraclePrice({
-            maxFeePerGas: gasPrices.maxFeePerGas,
-            maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
-            gasLimit: gasPrices.gasLimit,
-          })
-          .catch(() => 0),
+        contract.marketVolume().catch(() => 0),
+        contract._getOraclePrice().catch(() => 0),
       ]);
 
       return {
@@ -382,16 +424,8 @@ export const contractService = {
   async calculatePnL(marketId: string, position: Position): Promise<number> {
     try {
       const contract = await getContract(marketId);
-      const gasPrices = await getNetworkGasPrices();
-
-      // Use gas settings directly
-      const currentPrice = await contract
-        ._getOraclePrice({
-          maxFeePerGas: gasPrices.maxFeePerGas,
-          maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas,
-          gasLimit: gasPrices.gasLimit,
-        })
-        .catch(() => 0);
+      // No gas parameters needed for view function
+      const currentPrice = await contract._getOraclePrice().catch(() => 0);
 
       const pnl =
         position.type === PositionType.LONG

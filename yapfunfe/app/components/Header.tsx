@@ -27,6 +27,36 @@ export default function Header() {
   // Get the current user's address from either source
   const currentAddress = address || account.address;
 
+  const handleProtectedNavigation = async (path: string) => {
+    try {
+      console.log("Attempting navigation to:", path);
+      console.log("Current connection status:", { isConnected, address: currentAddress });
+      
+      // If already connected, navigate directly
+      if (isConnected && currentAddress) {
+        console.log("User is connected, navigating directly");
+        router.push(path);
+        return;
+      }
+
+      // Otherwise, check connection
+      const hasAccess = await ensureWalletConnected();
+      console.log("Wallet connection check result:", hasAccess);
+      
+      if (hasAccess) {
+        console.log("Access granted, navigating to:", path);
+        // Force a hard navigation
+        window.location.href = path;
+      } else {
+        console.log("Access denied, showing toast");
+        toast.error("Please connect your wallet first");
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast.error("Navigation failed. Please try again.");
+    }
+  };
+
   return (
     <motion.header
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b"
@@ -60,17 +90,8 @@ export default function Header() {
               Rankings
             </Link>
             {(isConnected || account.address) && (
-              <Link
-                href="/positions"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  const hasAccess = await ensureWalletConnected();
-                  if (hasAccess) {
-                    router.push("/positions");
-                  } else {
-                    toast.error("Please connect your wallet first");
-                  }
-                }}
+              <button
+                onClick={() => handleProtectedNavigation("/positions")}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   isActive("/positions")
                     ? "bg-secondary text-secondary-foreground"
@@ -78,7 +99,7 @@ export default function Header() {
                 } rounded-xl`}
               >
                 Positions
-              </Link>
+              </button>
             )}
             <Link
               href="/analytics"
@@ -96,18 +117,8 @@ export default function Header() {
 
         <div className="flex items-center space-x-4">
           {(isConnected || account.address) && currentAddress && (
-            <Link
-              href={`/profile/${currentAddress}`}
-              onClick={async (e) => {
-                e.preventDefault();
-                const hasAccess = await ensureWalletConnected();
-                if (hasAccess) {
-                  router.push(`/profile/${currentAddress}`);
-                } else {
-                  toast.error("Please connect your wallet first");
-                }
-              }}
-              prefetch={true}
+            <button
+              onClick={() => handleProtectedNavigation(`/profile/${currentAddress}`)}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 isActive("/profile")
                   ? "bg-secondary text-secondary-foreground"
@@ -115,7 +126,7 @@ export default function Header() {
               } rounded-xl`}
             >
               Profile
-            </Link>
+            </button>
           )}
           <ConnectButton />
         </div>

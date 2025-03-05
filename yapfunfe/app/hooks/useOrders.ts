@@ -227,7 +227,7 @@ export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
   useEffect(() => {
     fetchOrders();
     // Set up an interval to refresh orders
-    const interval = setInterval(fetchOrders, 30000); // Every 30 seconds
+    const interval = setInterval(fetchOrders, 3000000); // Every 30 seconds
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
