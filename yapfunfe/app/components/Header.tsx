@@ -2,18 +2,20 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "../providers/UserProvider";
 import { ConnectButton } from "./ConnectButton";
 import { motion } from "framer-motion";
 import { config } from "../providers/Web3Providers";
 import { getAccount } from "@wagmi/core";
 import HowItWorksModal from "./HowItWorksModal";
+import { toast } from "sonner";
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const account = getAccount(config);
-  const { address, isConnected } = useUser();
+  const { address, isConnected, ensureWalletConnected } = useUser();
 
   const isActive = useCallback(
     (path: string) => {
@@ -60,6 +62,15 @@ export default function Header() {
             {(isConnected || account.address) && (
               <Link
                 href="/positions"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  const hasAccess = await ensureWalletConnected();
+                  if (hasAccess) {
+                    router.push("/positions");
+                  } else {
+                    toast.error("Please connect your wallet first");
+                  }
+                }}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   isActive("/positions")
                     ? "bg-secondary text-secondary-foreground"
@@ -87,6 +98,15 @@ export default function Header() {
           {(isConnected || account.address) && currentAddress && (
             <Link
               href={`/profile/${currentAddress}`}
+              onClick={async (e) => {
+                e.preventDefault();
+                const hasAccess = await ensureWalletConnected();
+                if (hasAccess) {
+                  router.push(`/profile/${currentAddress}`);
+                } else {
+                  toast.error("Please connect your wallet first");
+                }
+              }}
               prefetch={true}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 isActive("/profile")

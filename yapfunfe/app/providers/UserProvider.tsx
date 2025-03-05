@@ -57,23 +57,44 @@ export function UserProvider({ children }: UserProviderProps) {
   // Memoize user data to prevent unnecessary re-renders
   const memoizedUserData = useMemo(() => userData, [userData]);
 
-  // Update cookie when wallet connection changes
+  // Update cookies and handle redirects when wallet connection changes
   useEffect(() => {
     if (isConnected && address) {
+      // Set cookies for authentication
       setCookie("connected_address", address, {
         maxAge: 30 * 24 * 60 * 60, // 30 days
         path: "/",
       });
+      setCookie("wallet_connected", "true", {
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+        path: "/",
+      });
+
+      // Check for redirect after connect
+      const redirectPath = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("redirect_after_connect="))
+        ?.split("=")[1];
+
+      if (redirectPath) {
+        // Clear the redirect cookie
+        deleteCookie("redirect_after_connect", { path: "/" });
+        // Decode the path and redirect
+        const decodedPath = decodeURIComponent(redirectPath);
+        router.push(decodedPath);
+      }
     } else {
+      // Clear authentication cookies
       deleteCookie("connected_address", { path: "/" });
+      deleteCookie("wallet_connected", { path: "/" });
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, router]);
 
   // Initialize user state and prefetch data
   useEffect(() => {
     const initializeUser = async () => {
-      if (isConnected && address) {
-        try {
+      try {
+        if (isConnected && address) {
           // Prefetch user data here
           // This could include total volume, trades, PnL, etc.
           const data = {
@@ -82,13 +103,15 @@ export function UserProvider({ children }: UserProviderProps) {
             totalPnL: 0,
           };
           setUserData(data);
-        } catch (error) {
-          console.error("Error initializing user:", error);
+        } else {
+          setUserData({});
         }
-      } else {
+      } catch (error) {
+        console.error("Error initializing user:", error);
         setUserData({});
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeUser();
@@ -101,13 +124,17 @@ export function UserProvider({ children }: UserProviderProps) {
     const isWalletConnected = isConnected || !!account.address;
 
     if (!isWalletConnected) {
-      // Only redirect if we're on a protected route
+      // Store current path for redirect after connect
       if (
-        pathname?.startsWith("/profile") ||
-        pathname?.startsWith("/positions")
+        pathname &&
+        (pathname.startsWith("/profile") || pathname.startsWith("/positions"))
       ) {
-        router.push("/");
+        setCookie("redirect_after_connect", pathname, {
+          maxAge: 300, // 5 minutes
+          path: "/",
+        });
       }
+      router.push("/");
       return false;
     }
     return true;
