@@ -31,37 +31,6 @@ export default function Header() {
   // Get the current user's address from either source
   const currentAddress = address || account.address;
 
-  const handleProtectedNavigation = async (path: string) => {
-    try {
-      // First ensure we have a wallet connected
-      if (!isConnected) {
-        const hasConnected = await ensureWalletConnected();
-        if (!hasConnected) {
-          toast.error("Please connect your wallet first");
-          return;
-        }
-      }
-
-      // Get the current address after ensuring connection
-      const targetAddress = address || account.address;
-      if (!account.address) {
-        toast.error("No wallet address found");
-        return;
-      }
-
-      // Use Next.js router for navigation
-      if (path.includes('/profile')) {
-        router.push(`/profile/${account.address}`);
-      } else {
-        router.push(path);
-      }
-      
-    } catch (error) {
-      console.error("Navigation error:", error);
-      toast.error("Navigation failed. Please try again.");
-    }
-  };
-
   const handleDeposit = async (
     amount: string
   ): Promise<{ success: boolean; message: string }> => {
@@ -114,7 +83,7 @@ export default function Header() {
             </Link>
             {(isConnected || account.address) && (
               <button
-                onClick={() => handleProtectedNavigation("/positions")}
+                onClick={() => router.push("/positions")}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   isActive("/positions")
                     ? "bg-secondary text-secondary-foreground"
@@ -147,7 +116,7 @@ export default function Header() {
                   className="px-4 py-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-fuchsia-500/25"
                 >
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-medium text-white/80">User Balance</span>
+                    <span className="text-xs font-medium text-white/80">Balance</span>
                     <span className="text-sm font-bold text-white">${Number(inHouseBalance).toFixed(2)}</span>
                   </div>
                 </button>
