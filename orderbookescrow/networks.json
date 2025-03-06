@@ -1,8 +1,0 @@
-{
-  "base-sepolia": {
-    "YapEscrow": {
-      "address": "0xa55b6f0BC1Ef608393678530C179D19715B75e7c",
-      "startBlock": 22661788
-    }
-  }
-}

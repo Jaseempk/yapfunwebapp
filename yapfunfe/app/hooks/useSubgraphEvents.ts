@@ -111,12 +111,7 @@ export function useSubgraphEvents(
           },
         });
 
-        // Log the raw data for debugging
-        console.log("Subgraph events data:", {
-          orderCreateds: data.orderCreateds?.length || 0,
-          positionCloseds: data.positionCloseds?.length || 0,
-          marketResets: data.marketResets?.length || 0,
-        });
+
 
         // Transform subgraph events into the expected format
         // Using empty arrays as fallbacks for undefined/null values
@@ -144,14 +139,7 @@ export function useSubgraphEvents(
         const allEvents = [...orderCreatedEvents, ...positionClosedEvents, ...marketResetEvents]
           .sort((a, b) => b.blockNumber - a.blockNumber);
 
-        console.log("Processed events:", {
-          total: allEvents.length,
-          types: {
-            orderCreated: orderCreatedEvents.length,
-            positionClosed: positionClosedEvents.length,
-            marketReset: marketResetEvents.length,
-          }
-        });
+
 
         setEvents(allEvents);
         setError(null);

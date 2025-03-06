@@ -15,22 +15,12 @@ export default function ProfilePage() {
   const router = useRouter();
   const { isConnected, isLoading, address: userAddress } = useUser();
   const account = getAccount(config);
-  const addressParam = params?.address as string;
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
-
-  // Check if this is the user's own profile
-  const isOwnProfile = 
-    addressParam && 
-    (addressParam.toLowerCase() === userAddress?.toLowerCase() || 
-     addressParam.toLowerCase() === account.address?.toLowerCase());
 
   useEffect(() => {
     // Simple check to see if we should show the profile
     const checkAccess = () => {
       if (isLoading) return;
-      
-      // Always allow viewing profiles, even if not connected
-      // This makes the app more permissive and avoids unnecessary redirects
       setIsCheckingAccess(false);
     };
 
@@ -47,14 +37,8 @@ export default function ProfilePage() {
     );
   }
 
-  // If no address in params, redirect to profile base
-  if (!addressParam) {
-    router.push("/profile");
-    return null;
-  }
-
-  // If not connected but trying to view own profile, show connect prompt
-  if (!isConnected && !account.address && isOwnProfile) {
+  // If not connected, show connect prompt
+  if (!isConnected && !account.address) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-6">
         <h1 className="text-2xl font-bold">Connect Your Wallet</h1>
@@ -72,6 +56,6 @@ export default function ProfilePage() {
     );
   }
 
-  // Otherwise show the profile content
-  return <ProfileContent userAddress={addressParam} />;
+  // Show the profile content for the connected user
+  return <ProfileContent />;
 }

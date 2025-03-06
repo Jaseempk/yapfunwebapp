@@ -71,9 +71,11 @@ export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
         const activeOrderCount = await readContract(config, {
           abi: obAbi,
           address: marketAddress,
-          functionName: "getActiveOrderCount",
+          functionName: "activeOrderCount",
           args: [],
         });
+
+        console.log("aaaactib",activeOrderCount)
 
         const orderPromises = [];
         for (let i = 1; i <= Number(activeOrderCount); i++) {
@@ -99,12 +101,14 @@ export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
         }
 
         fetchedOrders = await Promise.all(orderPromises);
+
+        console.log("feetchedOrdederds:",fetchOrders)
       } else {
         if (!kols) {
           console.warn("No KOLs provided for fetching all orders");
           return;
         }
-
+        console.log("KOOOOOOOOOL:",kols)
         // Fetch orders from all markets
         const allOrderPromises = await Promise.all(
           kols.map(async (kol) => {
@@ -131,9 +135,11 @@ export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
               const activeOrderCount = await readContract(config, {
                 abi: obAbi,
                 address: marketAddress,
-                functionName: "getActiveOrderCount",
+                functionName: "activeOrderCount",
                 args: [],
               });
+
+              console.log("aaaactibOOOOrdaere",activeOrderCount)
 
               const marketOrders = await Promise.all(
                 Array.from({ length: Number(activeOrderCount) }, (_, i) =>
@@ -169,6 +175,8 @@ export function useOrders(kolId?: string, userAddress?: string, kols?: KOL[]) {
         );
 
         fetchedOrders = allOrderPromises.flat();
+
+        console.log("feetchedOrdederdswegweh:",fetchOrders)
       }
       // Filter orders belonging to the current user
       const filteredOrders = fetchedOrders.filter((order) => {

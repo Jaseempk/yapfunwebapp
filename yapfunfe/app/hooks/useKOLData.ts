@@ -102,22 +102,38 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
       duration: timeFilterToDuration[timeFilter] || "SEVEN_DAYS",
       topN,
     },
-    fetchPolicy: "network-only", // Don't use cache for this query
+    fetchPolicy: "cache-and-network", // Use cache first, then update from network
+    nextFetchPolicy: "cache-first", // Use cache for subsequent requests
     errorPolicy: "all", // Return partial data if available
   });
-  console.log("daata:", data);
 
   const [marketAddresses, setMarketAddresses] = useState<
     Record<string, `0x${string}`>
   >({});
 
+  // Ensure we only process unique KOLs
+  const uniqueKols = useMemo(() => {
+    if (!data?.topKOLs?.kols) return [];
+    
+    // Use a Map to deduplicate by user_id
+    const kolMap = new Map();
+    data.topKOLs.kols.forEach(kol => {
+      if (!kolMap.has(kol.user_id)) {
+        kolMap.set(kol.user_id, kol);
+      }
+    });
+    
+    // Convert back to array and limit to topN
+    return Array.from(kolMap.values()).slice(0, topN);
+  }, [data, topN]);
+
   // Fetch market addresses for KOLs
   useEffect(() => {
     const fetchMarketAddresses = async () => {
-      if (!data?.topKOLs?.kols) return;
+      if (uniqueKols.length === 0) return;
 
       const addresses = await Promise.all(
-        data.topKOLs.kols.map(async (kol) => {
+        uniqueKols.map(async (kol) => {
           try {
             const address = await readContract(config, {
               abi: obFAbi,
@@ -148,12 +164,12 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
     };
 
     fetchMarketAddresses();
-  }, [data]);
+  }, [uniqueKols]);
 
   const formattedData = useMemo(() => {
-    if (!data?.topKOLs?.kols) return [];
+    if (uniqueKols.length === 0) return [];
 
-    return data.topKOLs.kols.map(
+    return uniqueKols.map(
       (kol: KOLResponse): KOLData => ({
         rank: parseInt(kol.rank),
         name: kol.name,
@@ -168,7 +184,7 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
         marketAddress: marketAddresses[kol.user_id],
       })
     );
-  }, [data, marketAddresses]);
+  }, [uniqueKols, marketAddresses]);
 
   return {
     kols: formattedData,

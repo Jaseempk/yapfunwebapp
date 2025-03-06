@@ -365,10 +365,7 @@ export class SubgraphService {
 
 // Initialize with the subgraph endpoints from environment variables
 export const subgraphService = new SubgraphService(
-  process.env.ORDERBOOK_SUBGRAPH_URL ||
-    "https://api.thegraph.com/subgraphs/name/your-orderbook-subgraph",
-  process.env.ORACLE_SUBGRAPH_URL ||
-    "https://api.thegraph.com/subgraphs/name/your-oracle-subgraph",
-  process.env.FACTORY_SUBGRAPH_URL ||
-    "https://api.thegraph.com/subgraphs/name/your-factory-subgraph"
+  process.env.ORDERBOOK_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/orderbook",
+  process.env.ORACLE_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/oracle",
+  process.env.FACTORY_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/factory"
 );

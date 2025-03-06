@@ -5,29 +5,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAccount } from "wagmi";
 import PositionsContent from "./PositionsContent";
-import { useOrders } from "../hooks/useOrders";
 import { useBalances } from "../hooks/useBalances";
 import { useDeposit } from "../hooks/useDeposit";
 import { usePnL } from "../hooks/usePnL";
-import { useKOLData } from "../hooks/useKOLData";
+import { useUserOrders } from "../hooks/useUserOrders";
 import DepositModal from "./DepositModal";
 import WithdrawModal from "./WithdrawModal";
 import { motion } from "framer-motion";
 import { Sparkles, Wallet, TrendingUp, BarChart2, Loader2 } from "lucide-react";
 
-interface ProfileContentProps {
-  userAddress?: string;
-}
-
-export default function ProfileContent({ userAddress }: ProfileContentProps) {
+export default function ProfileContent() {
   const { address } = useAccount();
-  const isOwnProfile = !userAddress || userAddress === address;
-  const targetAddress = userAddress || address;
-
-  const { kols } = useKOLData({ timeFilter: "7d" });
-  const { orders } = useOrders(undefined, targetAddress, kols);
+  const {  loading: ordersLoading, openOrdersCount } = useUserOrders();
   const { inHouseBalance, userBalance, refreshBalances } = useBalances();
-  const openOrdersCount = orders.filter((order) => order.status === 0).length;
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
@@ -57,7 +47,7 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {isOwnProfile ? "Your Dashboard" : `Profile: ${targetAddress}`}
+        Your Dashboard
       </motion.h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -72,25 +62,23 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
               <Sparkles className="w-6 h-6 mb-3" />
               <h2 className="text-lg font-semibold mb-2">In-house Balance</h2>
               <p className="text-xl font-bold mb-auto">{inHouseBalance} USDC</p>
-              {isOwnProfile && (
-                <div className="flex gap-2 mt-4">
-                  <Button
-                    onClick={() => setIsDepositModalOpen(true)}
-                    className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl flex-1"
-                    size="sm"
-                    disabled={depositLoading}
-                  >
-                    {depositLoading ? "Depositing..." : "Deposit"}
-                  </Button>
-                  <Button
-                    onClick={() => setIsWithdrawModalOpen(true)}
-                    className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl flex-1"
-                    size="sm"
-                  >
-                    Withdraw
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2 mt-4">
+                <Button
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl flex-1"
+                  size="sm"
+                  disabled={depositLoading}
+                >
+                  {depositLoading ? "Depositing..." : "Deposit"}
+                </Button>
+                <Button
+                  onClick={() => setIsWithdrawModalOpen(true)}
+                  className="bg-white/90 text-blue-600 hover:bg-white hover:text-blue-700 transition-colors rounded-xl flex-1"
+                  size="sm"
+                >
+                  Withdraw
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -150,7 +138,14 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
             <CardContent className="p-4 flex flex-col h-full">
               <BarChart2 className="w-6 h-6 mb-3" />
               <h2 className="text-lg font-semibold mb-2">Open Positions</h2>
-              <p className="text-xl font-bold mt-auto">{openOrdersCount}</p>
+              {ordersLoading ? (
+                <div className="flex items-center gap-2 text-xl font-bold mt-auto">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <p className="text-xl font-bold mt-auto">{openOrdersCount}</p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -163,28 +158,24 @@ export default function ProfileContent({ userAddress }: ProfileContentProps) {
         transition={{ duration: 0.5, delay: 0.4 }}
       >
         <h2 className="text-2xl font-['Orbitron'] mb-6 text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
-          {isOwnProfile ? "Your Positions" : "Positions"}
+          Your Positions
         </h2>
-        <PositionsContent userAddress={targetAddress} />
+        <PositionsContent />
       </motion.div>
 
-      {isOwnProfile && (
-        <>
-          <DepositModal
-            isOpen={isDepositModalOpen}
-            onClose={() => setIsDepositModalOpen(false)}
-            onDeposit={handleDeposit}
-            maxAmount={userBalance}
-            refreshBalances={refreshBalances}
-          />
-          <WithdrawModal
-            isOpen={isWithdrawModalOpen}
-            onClose={() => setIsWithdrawModalOpen(false)}
-            maxAmount={inHouseBalance}
-            onSuccess={refreshBalances}
-          />
-        </>
-      )}
+      <DepositModal
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)}
+        onDeposit={handleDeposit}
+        maxAmount={userBalance}
+        refreshBalances={refreshBalances}
+      />
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        maxAmount={inHouseBalance}
+        onSuccess={refreshBalances}
+      />
     </div>
   );
 }

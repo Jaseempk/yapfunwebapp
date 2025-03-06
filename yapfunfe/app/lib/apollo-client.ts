@@ -1,7 +1,7 @@
 import { ApolloClient, InMemoryCache } from "@apollo/client";
 
-const SUBGRAPH_URL =
-  "https://api.studio.thegraph.com/query/104902/orderbookfactory/version/latest";
+const SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL || 
+  "";
 
 export const apolloClient = new ApolloClient({
   uri: SUBGRAPH_URL,
