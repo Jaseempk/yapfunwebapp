@@ -1,0 +1,89 @@
+type OrderFulFilled @entity(immutable: true) {
+  id: Bytes!
+  marketAddy: Bytes! # address
+  makerOrTakerAddy: Bytes! # address
+  amountFilled: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type PnLSettled @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  market: Bytes! # address
+  settlingAmount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoleAdminChanged @entity(immutable: true) {
+  id: Bytes!
+  role: Bytes! # bytes32
+  previousAdminRole: Bytes! # bytes32
+  newAdminRole: Bytes! # bytes32
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoleGranted @entity(immutable: true) {
+  id: Bytes!
+  role: Bytes! # bytes32
+  account: Bytes! # address
+  sender: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoleRevoked @entity(immutable: true) {
+  id: Bytes!
+  role: Bytes! # bytes32
+  account: Bytes! # address
+  sender: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type UserBalanceLocked @entity(immutable: true) {
+  id: Bytes!
+  userAddy: Bytes! # address
+  marketAddy: Bytes! # address
+  amountToLock: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type UserBalanceUnlocked @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  marketAddy: Bytes! # address
+  balanceToFill: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type UserDepositWithdrawn @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  withdrawalAmount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type UserFundDeposited @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  depositAmount: BigInt! # uint256
+  userBalance: BigInt! # uint256
+  timeStamp: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}

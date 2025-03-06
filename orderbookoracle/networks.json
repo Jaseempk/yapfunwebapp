@@ -1,8 +1,0 @@
-{
-  "base-sepolia": {
-    "YapOracle": {
-      "address": "0xDa1B4fFfAF462D5c39c2c06b33b1d400c0E04aB7",
-      "startBlock": 22617618
-    }
-  }
-}
