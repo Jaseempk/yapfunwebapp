@@ -2,7 +2,7 @@
   {
     "type": "constructor",
     "inputs": [
-      { "name": "_yapEscrow", "type": "address", "internalType": "address" }
+      { "name": "updater", "type": "address", "internalType": "address" }
     ],
     "stateMutability": "nonpayable"
   },
@@ -15,30 +15,65 @@
       { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
     ]
   },
-  { "name": "YOBF__InvalidKolId", "type": "error", "inputs": [] },
-  { "name": "YOBF__InvalidOracle", "type": "error", "inputs": [] },
-  { "name": "YOBF__KOLOrderBookAlreadyExist", "type": "error", "inputs": [] },
+  { "name": "YO__InvalidParams", "type": "error", "inputs": [] },
   {
-    "name": "NewMarketInitialisedAndWhitelisted",
+    "name": "CrashedOutKolDataUpdated",
     "type": "event",
     "inputs": [
       {
         "name": "kolId",
         "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "rank",
+        "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "maker",
-        "type": "address",
+        "name": "mindshareScore",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "address"
+        "internalType": "uint256"
       },
       {
-        "name": "marketAddy",
-        "type": "address",
+        "name": "timestamp",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "address"
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "KOLDataUpdated",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "kolId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "rank",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "mindshareScore",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -126,10 +161,35 @@
     "stateMutability": "view"
   },
   {
-    "name": "USDC_ADDRESS",
+    "name": "MAX_UPDATE_DELAY",
     "type": "function",
     "inputs": [],
-    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "UPDATER_ROLE",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "getKOLData",
+    "type": "function",
+    "inputs": [
+      { "name": "kolId", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [
+      { "name": "rank", "type": "uint256", "internalType": "uint256" },
+      {
+        "name": "mindshareScore",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      { "name": "timestamp", "type": "uint256", "internalType": "uint256" },
+      { "name": "isStale", "type": "bool", "internalType": "bool" }
+    ],
     "stateMutability": "view"
   },
   {
@@ -162,24 +222,26 @@
     "stateMutability": "view"
   },
   {
-    "name": "initialiseMarket",
+    "name": "kolData",
     "type": "function",
-    "inputs": [
-      { "name": "kolId", "type": "uint256", "internalType": "uint256" },
-      { "name": "_oracle", "type": "address", "internalType": "address" }
+    "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      { "name": "rank", "type": "uint256", "internalType": "uint256" },
+      {
+        "name": "mindshareScore",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      { "name": "timestamp", "type": "uint256", "internalType": "uint256" },
+      { "name": "updateBlock", "type": "uint256", "internalType": "uint256" }
     ],
-    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
-    "stateMutability": "nonpayable"
+    "stateMutability": "view"
   },
   {
-    "name": "kolIdToMarket",
+    "name": "lastUpdateTime",
     "type": "function",
-    "inputs": [
-      { "name": "kolId", "type": "uint256", "internalType": "uint256" }
-    ],
-    "outputs": [
-      { "name": "market", "type": "address", "internalType": "address" }
-    ],
+    "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
@@ -207,6 +269,19 @@
     "stateMutability": "nonpayable"
   },
   {
+    "name": "revokeUpdaterRole",
+    "type": "function",
+    "inputs": [
+      {
+        "name": "_currentUpdater",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
     "name": "supportsInterface",
     "type": "function",
     "inputs": [
@@ -214,5 +289,40 @@
     ],
     "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
+  },
+  {
+    "name": "updateCrashedOutKolData",
+    "type": "function",
+    "inputs": [
+      { "name": "kolId", "type": "uint256", "internalType": "uint256" },
+      { "name": "rank", "type": "uint256", "internalType": "uint256" },
+      { "name": "mindshare", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "updateKOLData",
+    "type": "function",
+    "inputs": [
+      { "name": "kolIds", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "ranks", "type": "uint256[]", "internalType": "uint256[]" },
+      {
+        "name": "mindshareScores",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "updateUpdater",
+    "type": "function",
+    "inputs": [
+      { "name": "_newUpdater", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   }
 ]

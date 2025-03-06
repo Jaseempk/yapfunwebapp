@@ -1,36 +1,76 @@
 import { newMockEvent } from "matchstick-as"
-import { ethereum, BigInt, Address, Bytes } from "@graphprotocol/graph-ts"
+import { ethereum, BigInt, Bytes, Address } from "@graphprotocol/graph-ts"
 import {
-  NewMarketInitialisedAndWhitelisted,
+  CrashedOutKolDataUpdated,
+  KOLDataUpdated,
   RoleAdminChanged,
   RoleGranted,
   RoleRevoked
-} from "../generated/YapOrderBookFactory/YapOrderBookFactory"
+} from "../generated/YapOracle/YapOracle"
 
-export function createNewMarketInitialisedAndWhitelistedEvent(
+export function createCrashedOutKolDataUpdatedEvent(
   kolId: BigInt,
-  maker: Address,
-  marketAddy: Address
-): NewMarketInitialisedAndWhitelisted {
-  let newMarketInitialisedAndWhitelistedEvent =
-    changetype<NewMarketInitialisedAndWhitelisted>(newMockEvent())
+  rank: BigInt,
+  mindshareScore: BigInt,
+  timestamp: BigInt
+): CrashedOutKolDataUpdated {
+  let crashedOutKolDataUpdatedEvent =
+    changetype<CrashedOutKolDataUpdated>(newMockEvent())
 
-  newMarketInitialisedAndWhitelistedEvent.parameters = new Array()
+  crashedOutKolDataUpdatedEvent.parameters = new Array()
 
-  newMarketInitialisedAndWhitelistedEvent.parameters.push(
+  crashedOutKolDataUpdatedEvent.parameters.push(
     new ethereum.EventParam("kolId", ethereum.Value.fromUnsignedBigInt(kolId))
   )
-  newMarketInitialisedAndWhitelistedEvent.parameters.push(
-    new ethereum.EventParam("maker", ethereum.Value.fromAddress(maker))
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam("rank", ethereum.Value.fromUnsignedBigInt(rank))
   )
-  newMarketInitialisedAndWhitelistedEvent.parameters.push(
+  crashedOutKolDataUpdatedEvent.parameters.push(
     new ethereum.EventParam(
-      "marketAddy",
-      ethereum.Value.fromAddress(marketAddy)
+      "mindshareScore",
+      ethereum.Value.fromUnsignedBigInt(mindshareScore)
+    )
+  )
+  crashedOutKolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "timestamp",
+      ethereum.Value.fromUnsignedBigInt(timestamp)
     )
   )
 
-  return newMarketInitialisedAndWhitelistedEvent
+  return crashedOutKolDataUpdatedEvent
+}
+
+export function createKOLDataUpdatedEvent(
+  kolId: BigInt,
+  rank: BigInt,
+  mindshareScore: BigInt,
+  timestamp: BigInt
+): KOLDataUpdated {
+  let kolDataUpdatedEvent = changetype<KOLDataUpdated>(newMockEvent())
+
+  kolDataUpdatedEvent.parameters = new Array()
+
+  kolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam("kolId", ethereum.Value.fromUnsignedBigInt(kolId))
+  )
+  kolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam("rank", ethereum.Value.fromUnsignedBigInt(rank))
+  )
+  kolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "mindshareScore",
+      ethereum.Value.fromUnsignedBigInt(mindshareScore)
+    )
+  )
+  kolDataUpdatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "timestamp",
+      ethereum.Value.fromUnsignedBigInt(timestamp)
+    )
+  )
+
+  return kolDataUpdatedEvent
 }
 
 export function createRoleAdminChangedEvent(

@@ -5,31 +5,34 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum
-    name: YapOrderBookFactory
+    name: YapOracle
     network: base-sepolia
     source:
-      address: "0x7627F934F4f32fd34C1eCb1ec938bf64b0149Aa9"
-      abi: YapOrderBookFactory
-      startBlock: 22661788
+      address: "0xDa1B4fFfAF462D5c39c2c06b33b1d400c0E04aB7"
+      abi: YapOracle
+      startBlock: 22617618
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - NewMarketInitialisedAndWhitelisted
+        - CrashedOutKolDataUpdated
+        - KOLDataUpdated
         - RoleAdminChanged
         - RoleGranted
         - RoleRevoked
       abis:
-        - name: YapOrderBookFactory
-          file: ./abis/YapOrderBookFactory.json
+        - name: YapOracle
+          file: ./abis/YapOracle.json
       eventHandlers:
-        - event: NewMarketInitialisedAndWhitelisted(uint256,address,address)
-          handler: handleNewMarketInitialisedAndWhitelisted
+        - event: CrashedOutKolDataUpdated(indexed uint256,uint256,uint256,uint256)
+          handler: handleCrashedOutKolDataUpdated
+        - event: KOLDataUpdated(indexed uint256,uint256,uint256,uint256)
+          handler: handleKOLDataUpdated
         - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
           handler: handleRoleAdminChanged
         - event: RoleGranted(indexed bytes32,indexed address,indexed address)
           handler: handleRoleGranted
         - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
           handler: handleRoleRevoked
-      file: ./src/yap-order-book-factory.ts
+      file: ./src/yap-oracle.ts
