@@ -121,7 +121,9 @@ export function UserProvider({ children }: UserProviderProps) {
   const ensureWalletConnected = useCallback(async () => {
     // Check both wagmi and direct account status
     const account = getAccount(config);
-    const isWalletConnected = isConnected || !!account.address;
+    const isWalletConnected = isConnected || account.address;
+
+    console.log("issswalletConnected:", isWalletConnected);
 
     if (!isWalletConnected) {
       // Store current path for redirect after connect
@@ -136,14 +138,24 @@ export function UserProvider({ children }: UserProviderProps) {
       }
       router.push("/");
       return false;
+    } else {
+      if (pathname && pathname.startsWith("/profile")) {
+        router.push("/profile");
+      } else {
+        if (pathname && pathname.startsWith("/positions")) {
+          router.push("/positions");
+        }
+      }
+      return true;
     }
-    return true;
   }, [isConnected, router, pathname]);
 
   // Update routes when wallet connection changes
   useEffect(() => {
     const account = getAccount(config);
-    const isWalletConnected = isConnected || !!account.address;
+    const isWalletConnected = isConnected || account.address;
+
+    console.log("issswalletConnected:", isWalletConnected);
 
     if (!isWalletConnected && !isLoading) {
       const currentPath = pathname;
@@ -152,6 +164,14 @@ export function UserProvider({ children }: UserProviderProps) {
         currentPath?.startsWith("/positions")
       ) {
         router.push("/");
+      }
+    } else {
+      if (pathname && pathname.startsWith("/profile")) {
+        router.push("/profile");
+      } else {
+        if (pathname && pathname.startsWith("/positions")) {
+          router.push("/positions");
+        }
       }
     }
   }, [isConnected, isLoading, router, pathname]);

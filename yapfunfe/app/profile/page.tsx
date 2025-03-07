@@ -23,8 +23,8 @@ export default function ProfileRedirectPage() {
       const currentAddress = address || account.address;
       
       // If we have an address, redirect to the profile page
-      if (currentAddress) {
-        router.replace(`/profile/${currentAddress}`);
+      if ( account.address) {
+        router.replace(`/profile/${ account.address}`);
         return;
       }
       

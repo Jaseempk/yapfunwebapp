@@ -90,9 +90,18 @@ const cache = new InMemoryCache({
             return mindshare;
           },
         },
+        // Don't cache volume data to ensure fresh data on each render
         volume: {
-          read(volume = 0) {
+          // This makes the field always read from the network response
+          read(volume = 0, { readField }) {
+            // Get the user_id to help with debugging
+            const userId = readField('user_id');
+
             return volume;
+          },
+          // This makes the field never merge with existing data
+          merge(existing, incoming) {
+            return incoming;
           },
         },
       },

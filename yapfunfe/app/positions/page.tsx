@@ -39,5 +39,20 @@ export default function PositionsPage() {
     return null;
   }
 
-  return <PositionsContent />;
+  return (
+    <div className="container mx-auto px-4 pt-24 pb-16">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Your Positions</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your active and filled positions across all KOLs
+          </p>
+        </div>
+        
+        <div className="bg-card/30 rounded-xl p-6 backdrop-blur-sm border border-border/50">
+          <PositionsContent />
+        </div>
+      </div>
+    </div>
+  );
 }

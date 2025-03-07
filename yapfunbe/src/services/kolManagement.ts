@@ -4,6 +4,7 @@ import { marketCycleService } from "./marketCycle";
 import { provider } from "./contract";
 import { orderBookAbi } from "../abi/orderBook";
 import { KaitoApiService } from "./kaitoApi";
+import { yapOracleAbi, yapOracleCA } from "src/abi/yapOracle";
 
 interface KaitoResponse {
   kols: Array<{
@@ -79,15 +80,19 @@ class KOLManagementService {
 
         // Update oracle contract with fresh mindshare value
         const contract = new ethers.Contract(
-          kol.marketAddress,
-          orderBookAbi,
+          yapOracleCA,
+          yapOracleAbi,
           provider
         );
 
         console.log(
           `Updating KOL ${kol.id} with new mindshare: ${freshData.mindshare}`
         );
-        await contract.updateCrashedOutKolData(kol.id, freshData.mindshare);
+        await contract.updateCrashedOutKolData(
+          kol.id,
+          freshData.rank,
+          freshData.mindshare
+        );
 
         // Add delay between updates to avoid rate limiting
         await new Promise((resolve) => setTimeout(resolve, 500));

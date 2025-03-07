@@ -17,7 +17,7 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const account = getAccount(config);
-  const { address, isConnected, ensureWalletConnected } = useUser();
+  const { address, isConnected } = useUser();
   const { inHouseBalance, userBalance, refreshBalances } = useBalances();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
@@ -93,7 +93,7 @@ export default function Header() {
                 Positions
               </button>
             )}
-            <Link
+            {/* <Link
               href="/analytics"
               className={`px-4 py-2 rounded-lg transition-colors ${
                 isActive("/analytics")
@@ -102,7 +102,7 @@ export default function Header() {
               } rounded-xl`}
             >
               Analytics
-            </Link>
+            </Link> */}
             <HowItWorksModal />
           </div>
         </div>
@@ -116,8 +116,12 @@ export default function Header() {
                   className="px-4 py-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-fuchsia-500/25"
                 >
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-medium text-white/80">Balance</span>
-                    <span className="text-sm font-bold text-white">${Number(inHouseBalance).toFixed(2)}</span>
+                    <span className="text-xs font-medium text-white/80">
+                      Balance
+                    </span>
+                    <span className="text-sm font-bold text-white">
+                      ${Number(inHouseBalance).toFixed(2)}
+                    </span>
                   </div>
                 </button>
                 <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>

@@ -81,11 +81,47 @@ export const kolResolvers = {
           throw new Error("Invalid response format from KOL service");
         }
 
-        // Transform and return data
+        // Set a reasonable timeout for blockchain operations
+        const BLOCKCHAIN_TIMEOUT = 5000; // 5 seconds
+
+        // Transform and return data with timeout protection
         const kols = await Promise.all(
           response.data.data.map(async (kol) => {
             try {
-              return await kolService.transformKaitoKOL(kol);
+              // Create a promise that resolves with the transformed KOL data
+              const transformPromise = kolService.transformKaitoKOL(kol);
+              
+              // Create a timeout promise
+              const timeoutPromise = new Promise<any>((resolve) => {
+                setTimeout(() => {
+                  console.warn(`[KOL Service] Timeout for KOL ${kol.user_id} transformation`);
+                  // Return fallback data with default values
+                  resolve({
+                    address: "",
+                    marketAddress: "",
+                    mindshare: Number(kol.mindshare || 0),
+                    rank: kol.rank || "0",
+                    // Default values for blockchain data
+                    volume: 0,
+                    trades: 0,
+                    pnl: 0,
+                    followers: Number(kol.follower_count || 0),
+                    following: Number(kol.following_count || 0),
+                    user_id: kol.user_id,
+                    name: kol.name || kol.username || kol.user_id,
+                    username: kol.username || "",
+                    icon: kol.icon || "",
+                    bio: kol.bio || "",
+                    twitter_url: kol.twitter_user_url || "",
+                    last_7_day_mention_count: Number(
+                      kol.last_7_day_mention_count || 0
+                    ),
+                  });
+                }, BLOCKCHAIN_TIMEOUT);
+              });
+              
+              // Race the transform promise against the timeout
+              return Promise.race([transformPromise, timeoutPromise]);
             } catch (error) {
               console.error(`Error transforming KOL ${kol.user_id}:`, error);
               return {
@@ -93,6 +129,7 @@ export const kolResolvers = {
                 marketAddress: "",
                 mindshare: Number(kol.mindshare || 0),
                 rank: kol.rank || "0",
+                // Default values for blockchain data
                 volume: 0,
                 trades: 0,
                 pnl: 0,

@@ -4,6 +4,7 @@ interface KaitoKOLResponse {
   data: {
     mindshare: number;
     username: string;
+    rank: number;
   };
 }
 
@@ -33,7 +34,7 @@ export class KaitoApiService {
   // Fetch individual KOL data
   static async getIndividualKOLData(
     kolId: string
-  ): Promise<{ mindshare: number; username: string } | null> {
+  ): Promise<{ mindshare: number; username: string; rank: number } | null> {
     try {
       const data = {
         path: "/api/yapper/public_kol_mindshare",
@@ -41,7 +42,7 @@ export class KaitoApiService {
         params: {
           kol: kolId,
           type: "kol",
-          duration: "30d",
+          duration: "7d",
           nft_filter: true,
           topic_id: "",
         },
@@ -49,7 +50,7 @@ export class KaitoApiService {
       };
 
       const response = await axios.post<KaitoKOLResponse>(
-        `${this.baseUrl}?kol=${kolId}&type=kol&duration=30d&nft_filter=true&topic_id=`,
+        `${this.baseUrl}?kol=${kolId}&type=kol&duration=7d&nft_filter=true&topic_id=`,
         data,
         { headers: this.headers }
       );
@@ -62,6 +63,7 @@ export class KaitoApiService {
       return {
         mindshare: response.data.data.mindshare,
         username: response.data.data.username,
+        rank: response.data.data.rank,
       };
     } catch (error) {
       console.error(`Error fetching data for KOL ${kolId}:`, error);
@@ -72,8 +74,13 @@ export class KaitoApiService {
   // Batch update crashed out KOLs
   static async updateCrashedOutKOLsData(
     kolIds: string[]
-  ): Promise<Map<string, { mindshare: number; username: string }>> {
-    const results = new Map<string, { mindshare: number; username: string }>();
+  ): Promise<
+    Map<string, { mindshare: number; username: string; rank: number }>
+  > {
+    const results = new Map<
+      string,
+      { mindshare: number; username: string; rank: number }
+    >();
 
     // Process KOLs in batches to avoid rate limiting
     const batchSize = 5;
