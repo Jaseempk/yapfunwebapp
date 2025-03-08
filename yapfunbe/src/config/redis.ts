@@ -8,12 +8,18 @@ export const REDIS_KEYS = {
   CRASHED_KOLS: "market:cycle:kols:crashed:", // Append cycleId
   MARKET_POSITIONS: "market:positions:", // Append marketAddress
   CYCLE_STATUS: "market:cycle:status:", // Append cycleId
+  MARKET_DATA: "market:data:", // Append marketAddress
+  MARKET_MINDSHARES: "market:mindshares:", // Append marketAddress
+  GLOBAL_EXPIRY: "market:cycle:expiry:", // Append cycleId
+  BUFFER_END: "market:cycle:buffer:", // Append cycleId
 };
 
 // Redis TTL values (in seconds)
 export const REDIS_TTL = {
-  CYCLE_DATA: 4 * 24 * 60 * 60, // 4 days (cycle duration + 1 day buffer)
-  MARKET_POSITIONS: 4 * 24 * 60 * 60,
+  CYCLE_DATA: 5 * 24 * 60 * 60, // 5 days (cycle duration + buffer + extra day)
+  MARKET_POSITIONS: 5 * 24 * 60 * 60,
+  MARKET_DATA: 5 * 24 * 60 * 60,
+  MINDSHARE_DATA: 5 * 24 * 60 * 60,
 };
 
 // Redis client configuration

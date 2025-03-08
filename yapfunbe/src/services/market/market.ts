@@ -1,6 +1,13 @@
 import { redis } from "../../config/cache";
 import { CACHE_PREFIX, CACHE_TTL } from "../../config/cache";
-import { Market, Position, Order, PricePoint } from "../../types/market";
+import {
+  Market,
+  Position,
+  Order,
+  PricePoint,
+  PositionType,
+  PositionStatus,
+} from "../../types/market";
 import { contractService } from "../contract";
 import { subgraphService } from "../subgraph";
 import { errorHandler } from "../error";
@@ -126,8 +133,23 @@ export class MarketService {
         return JSON.parse(cachedPositions);
       }
 
-      // Fetch from subgraph
-      const positions = await subgraphService.getMarketPositions(marketId);
+      // Since subgraphService.getMarketPositions has been removed, we'll use contractService instead
+      const orders = await contractService.getMarketOrders(marketId);
+      const positions: Position[] = orders
+        .filter((order) => order.status === "FILLED") // Only consider filled orders as positions
+        .map((order) => ({
+          id: order.id,
+          marketId: order.marketId,
+          trader: order.trader,
+          amount: order.amount,
+          entryPrice: order.price,
+          type: order.type === "LIMIT" ? PositionType.LONG : PositionType.SHORT, // Simplified mapping
+          status: PositionStatus.CLOSED,
+          pnl: 0, // Not available here
+          createdAt: order.createdAt,
+          closedAt: order.updatedAt,
+        }));
+
       if (positions.length > 0) {
         await redis.setex(
           this.getMarketPositionsKey(marketId),

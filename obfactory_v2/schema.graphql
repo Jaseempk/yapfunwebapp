@@ -8,6 +8,78 @@ type NewMarketInitialisedAndWhitelisted @entity(immutable: true) {
   transactionHash: Bytes!
 }
 
+type FeeWithdrawalInitiated @entity(immutable: true) {
+  id: Bytes!
+  caller: Bytes! # address
+  amountWithdrawn: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type MarketReset @entity(immutable: true) {
+  id: Bytes!
+  timestamp: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OrderCanceled @entity(immutable: true) {
+  id: Bytes!
+  orderId: BigInt! # uint256
+  order_trader: Bytes! # address
+  order_positionId: BigInt! # uint256
+  order_kolId: BigInt! # uint256
+  order_isLong: Boolean! # bool
+  order_mindshareValue: BigInt! # uint256
+  order_quantity: BigInt! # uint256
+  order_filledQuantity: BigInt! # uint256
+  order_timestamp: BigInt! # uint256
+  order_status: Int! # uint8
+  cancelAmount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OrderCreated @entity(immutable: true) {
+  id: Bytes!
+  orderId: BigInt! # uint256
+  trader: Bytes! # address
+  kolId: BigInt! # uint256
+  market: Bytes! # address
+  isLong: Boolean! # bool
+  mindshareValue: BigInt! # uint256
+  quantity: BigInt! # uint256
+  _totalVolume: BigInt! # uint256
+  activeOrderCount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OrderFilled @entity(immutable: true) {
+  id: Bytes!
+  orderId: BigInt! # uint256
+  filledQuantity: BigInt! # uint256
+  counterpartyTrader: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type PositionClosed @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  market: Bytes! # address
+  pnl: BigInt! # int256
+  positionId: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
 type RoleAdminChanged @entity(immutable: true) {
   id: Bytes!
   role: Bytes! # bytes32

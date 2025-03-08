@@ -1,11 +1,4 @@
-import {
-  Market,
-  Position,
-  PricePoint,
-  MarketDeployment,
-  PositionType,
-  PositionStatus,
-} from "../types/market";
+import { Market, PricePoint, MarketDeployment } from "../types/market";
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
 
@@ -25,15 +18,7 @@ interface SubgraphMarketInitialized {
   marketAddy: string;
 }
 
-interface SubgraphPositionClosed {
-  id: string;
-  user: string;
-  market: string;
-  pnl: string;
-  positionId: string;
-  blockNumber: string;
-  blockTimestamp: string;
-}
+// SubgraphPositionClosed interface has been removed as it's no longer used
 
 interface SubgraphOrderFilled {
   id: string;
@@ -88,17 +73,9 @@ interface SubgraphPosition {
 }
 
 export class SubgraphService {
-  private readonly orderBookEndpoint: string;
-  private readonly oracleEndpoint: string;
   private readonly factoryEndpoint: string;
 
-  constructor(
-    orderBookEndpoint: string,
-    oracleEndpoint: string,
-    factoryEndpoint: string
-  ) {
-    this.orderBookEndpoint = orderBookEndpoint;
-    this.oracleEndpoint = oracleEndpoint;
+  constructor(factoryEndpoint: string) {
     this.factoryEndpoint = factoryEndpoint;
   }
 
@@ -249,72 +226,6 @@ export class SubgraphService {
     }
   }
 
-  async getPositions(trader: string): Promise<Position[]> {
-    const query = `
-      query GetPositions($trader: String!) {
-        positionCloseds(where: { user: $trader }) {
-          id
-          user
-          market
-          pnl
-          positionId
-          blockNumber
-          blockTimestamp
-        }
-      }
-    `;
-
-    const data = await this.query<{
-      positionCloseds: SubgraphPositionClosed[];
-    }>(this.orderBookEndpoint, query, { trader });
-
-    return (data.positionCloseds || []).map((position) => ({
-      id: position.id,
-      marketId: position.market,
-      trader: position.user,
-      amount: 0, // Not available in event
-      entryPrice: 0, // Not available in event
-      type: PositionType.LONG, // Not available in event
-      status: PositionStatus.CLOSED,
-      pnl: Number(position.pnl) / 1e6,
-      createdAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
-      closedAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
-    }));
-  }
-
-  async getMarketPositions(marketId: string): Promise<Position[]> {
-    const query = `
-      query GetMarketPositions($marketId: ID!) {
-        positionCloseds(where: { market: $marketId }) {
-          id
-          user
-          market
-          pnl
-          positionId
-          blockNumber
-          blockTimestamp
-        }
-      }
-    `;
-
-    const data = await this.query<{
-      positionCloseds: SubgraphPositionClosed[];
-    }>(this.orderBookEndpoint, query, { marketId });
-
-    return (data.positionCloseds || []).map((position) => ({
-      id: position.id,
-      marketId: position.market,
-      trader: position.user,
-      amount: 0, // Not available in event
-      entryPrice: 0, // Not available in event
-      type: PositionType.LONG, // Not available in event
-      status: PositionStatus.CLOSED,
-      pnl: Number(position.pnl) / 1e6,
-      createdAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
-      closedAt: new Date(Number(position.blockTimestamp) * 1000).toISOString(),
-    }));
-  }
-
   async checkMarketExists(kolId: string): Promise<string | null> {
     const query = `
       query CheckMarket($kolId: String!) {
@@ -365,7 +276,6 @@ export class SubgraphService {
 
 // Initialize with the subgraph endpoints from environment variables
 export const subgraphService = new SubgraphService(
-  process.env.ORDERBOOK_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/orderbook",
-  process.env.ORACLE_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/oracle",
-  process.env.FACTORY_SUBGRAPH_URL || "https://api.thegraph.com/subgraphs/name/yapfun/factory"
+  process.env.FACTORY_SUBGRAPH_URL ||
+    "https://gateway.thegraph.com/api/9aec29c6f03932a7afa971b84755c12c/subgraphs/id/5PboFdKX1j2enW5mVHc9ySAZ6eQsKjQ4vBXqmAE7y9tj"
 );

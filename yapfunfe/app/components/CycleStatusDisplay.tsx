@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useQuery } from "@apollo/client";
+import { gql } from "@apollo/client";
+import { formatDistanceToNow } from "date-fns";
+
+// GraphQL query to get cycle status
+const GET_CYCLE_STATUS = gql`
+  query GetCycleStatus {
+    cycleStatus {
+      status
+      bufferEndTime
+      globalExpiry
+      isInBuffer
+    }
+  }
+`;
+
+export default function CycleStatusDisplay() {
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+  const [progress, setProgress] = useState<number>(0);
+
+  const { loading, error, data } = useQuery(GET_CYCLE_STATUS, {
+    pollInterval: 30000, // Poll every 30 seconds
+  });
+
+  useEffect(() => {
+    if (!data?.cycleStatus) return;
+
+    const { status, bufferEndTime, globalExpiry, isInBuffer } =
+      data.cycleStatus;
+
+    // Calculate time remaining and update every second
+    const updateTimer = () => {
+      const now = Date.now();
+      let targetTime = isInBuffer ? bufferEndTime : globalExpiry;
+
+      if (!targetTime) return;
+
+      // Convert to number if it's a string
+      targetTime =
+        typeof targetTime === "string" ? parseInt(targetTime) : targetTime;
+
+      // Calculate time remaining
+      const remaining = Math.max(0, targetTime - now);
+
+      // Calculate progress percentage
+      let progressValue = 0;
+      if (isInBuffer) {
+        // For buffer period (1 hour)
+        const bufferDuration = 60 * 60 * 1000; // 1 hour in ms
+        progressValue = 100 - (remaining / bufferDuration) * 100;
+      } else {
+        // For active cycle (72 hours)
+        const cycleDuration = 72 * 60 * 60 * 1000; // 72 hours in ms
+        progressValue = 100 - (remaining / cycleDuration) * 100;
+      }
+
+      setProgress(Math.min(100, Math.max(0, progressValue)));
+
+      // Format time remaining
+      if (remaining > 0) {
+        setTimeRemaining(
+          formatDistanceToNow(new Date(targetTime), { addSuffix: true })
+        );
+      } else {
+        setTimeRemaining(
+          isInBuffer ? "Starting new cycle..." : "Ending cycle..."
+        );
+      }
+    };
+
+    // Update immediately and then every second
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [data]);
+
+  if (loading)
+    return <div className="animate-pulse">Loading cycle status...</div>;
+  if (error)
+    return <div className="text-red-500">Error loading cycle status</div>;
+  if (!data?.cycleStatus) return null;
+
+  const { status, isInBuffer } = data.cycleStatus;
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-medium">
+          {isInBuffer ? "Next Cycle Starting" : "Current Cycle Status"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">
+              {isInBuffer ? "Buffer Period" : "Active Cycle"}
+            </span>
+            <span className="text-sm text-muted-foreground">{status}</span>
+          </div>
+
+          <Progress value={progress} className="h-2" />
+
+          <div className="text-center text-sm font-medium">
+            {isInBuffer ? (
+              <span className="text-amber-500">
+                Next cycle starts {timeRemaining}
+              </span>
+            ) : (
+              <span>Cycle ends {timeRemaining}</span>
+            )}
+          </div>
+
+          {isInBuffer && (
+            <div className="text-xs text-center text-muted-foreground mt-2">
+              Trading is paused during the buffer period
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -5,6 +5,7 @@ import {
   CrashedOutKOL,
   MarketPosition,
   CycleStatus,
+  MarketData,
 } from "../types/marketCycle";
 
 export class RedisService {
@@ -50,6 +51,34 @@ export class RedisService {
     return status as CycleStatus | null;
   }
 
+  async setGlobalExpiry(
+    cycleId: string,
+    expiryTimestamp: number
+  ): Promise<void> {
+    const key = REDIS_KEYS.GLOBAL_EXPIRY + cycleId;
+    await redisClient.set(key, expiryTimestamp.toString());
+  }
+
+  async getGlobalExpiry(cycleId: string): Promise<number | null> {
+    const key = REDIS_KEYS.GLOBAL_EXPIRY + cycleId;
+    const expiry = await redisClient.get(key);
+    return expiry ? parseInt(expiry) : null;
+  }
+
+  async setBufferEndTime(
+    cycleId: string,
+    bufferEndTime: number
+  ): Promise<void> {
+    const key = REDIS_KEYS.BUFFER_END + cycleId;
+    await redisClient.set(key, bufferEndTime.toString());
+  }
+
+  async getBufferEndTime(cycleId: string): Promise<number | null> {
+    const key = REDIS_KEYS.BUFFER_END + cycleId;
+    const bufferEnd = await redisClient.get(key);
+    return bufferEnd ? parseInt(bufferEnd) : null;
+  }
+
   // KOL Management
   async setActiveKOLs(cycleId: string, kols: KOLData[]): Promise<void> {
     const key = REDIS_KEYS.ACTIVE_KOLS + cycleId;
@@ -73,6 +102,34 @@ export class RedisService {
     const key = REDIS_KEYS.CRASHED_KOLS + cycleId;
     const data = await redisClient.get(key);
     return data ? JSON.parse(data) : [];
+  }
+
+  // Market Data Management
+  async setMarketData(marketAddress: string, data: MarketData): Promise<void> {
+    const key = REDIS_KEYS.MARKET_DATA + marketAddress;
+    await redisClient.setex(key, REDIS_TTL.MARKET_DATA, JSON.stringify(data));
+  }
+
+  async getMarketData(marketAddress: string): Promise<MarketData | null> {
+    const key = REDIS_KEYS.MARKET_DATA + marketAddress;
+    const data = await redisClient.get(key);
+    return data ? JSON.parse(data) : null;
+  }
+
+  async addMindshareValue(
+    marketAddress: string,
+    mindshare: number
+  ): Promise<void> {
+    const key = REDIS_KEYS.MARKET_MINDSHARES + marketAddress;
+    const timestamp = Date.now();
+    await redisClient.zadd(key, timestamp, mindshare.toString());
+    await redisClient.expire(key, REDIS_TTL.MINDSHARE_DATA);
+  }
+
+  async getMindshareValues(marketAddress: string): Promise<number[]> {
+    const key = REDIS_KEYS.MARKET_MINDSHARES + marketAddress;
+    const values = await redisClient.zrange(key, 0, -1);
+    return values.map((v) => parseInt(v));
   }
 
   // Market Position Management
@@ -107,6 +164,19 @@ export class RedisService {
     }
   }
 
+  async addOrderToMarket(
+    marketAddress: string,
+    orderId: number
+  ): Promise<void> {
+    const position = await this.getMarketPosition(marketAddress);
+    if (position) {
+      if (!position.activeTokenIds.includes(orderId)) {
+        position.activeTokenIds.push(orderId);
+        await this.setMarketPosition(marketAddress, position);
+      }
+    }
+  }
+
   // Utility Methods
   async clearCycleData(cycleId: string): Promise<void> {
     const keys = [
@@ -114,6 +184,8 @@ export class RedisService {
       REDIS_KEYS.ACTIVE_KOLS + cycleId,
       REDIS_KEYS.CRASHED_KOLS + cycleId,
       REDIS_KEYS.CYCLE_STATUS + cycleId,
+      REDIS_KEYS.GLOBAL_EXPIRY + cycleId,
+      REDIS_KEYS.BUFFER_END + cycleId,
     ];
     await redisClient.del(...keys);
   }
@@ -131,6 +203,17 @@ export class RedisService {
     return (
       activeKOLs.find((kol) => kol.marketAddress === marketAddress) || null
     );
+  }
+
+  async getAllActiveMarkets(cycleId: string): Promise<string[]> {
+    const cycle = await this.getCycleData(cycleId);
+    if (!cycle) return [];
+
+    const activeMarkets = cycle.activeKols
+      .filter((kol) => kol.marketAddress)
+      .map((kol) => kol.marketAddress as string);
+
+    return activeMarkets;
   }
 }
 

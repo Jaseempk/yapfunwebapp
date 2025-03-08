@@ -10,6 +10,8 @@ import {
   QueryResolvers,
   MutationResolvers,
   SubscriptionResolvers,
+  CycleStatus,
+  CycleStatusEnum,
 } from "../../types/market";
 import { contractService } from "../../services/contract";
 import { subgraphService } from "../../services/subgraph";
@@ -18,6 +20,8 @@ import { analyticsService } from "../../services/analytics";
 import { notificationService } from "../../services/notification";
 import { errorHandler } from "../../services/error";
 import { marketEvents, MarketEventType } from "../../services/market/events";
+import { schedulerService } from "../../services/scheduler";
+import { CycleStatus as BackendCycleStatus } from "../../types/marketCycle";
 
 const pubsub = new PubSub();
 
@@ -70,36 +74,8 @@ export const marketResolvers: {
       }
     },
 
-    positions: async (
-      _: unknown,
-      { trader }: { trader: string },
-      context: MarketResolverContext
-    ): Promise<Position[]> => {
-      try {
-        assertUser(context);
-        validationService.validateAddress(trader);
-        return await subgraphService.getPositions(trader);
-      } catch (error) {
-        console.error(`Error fetching positions for ${trader}:`, error);
-        throw errorHandler.handle(error);
-      }
-    },
-
-    marketPositions: async (
-      _: unknown,
-      { marketId }: { marketId: string }
-    ): Promise<Position[]> => {
-      try {
-        validationService.validateMarket(marketId);
-        return await subgraphService.getMarketPositions(marketId);
-      } catch (error) {
-        console.error(
-          `Error fetching positions for market ${marketId}:`,
-          error
-        );
-        throw errorHandler.handle(error);
-      }
-    },
+    // positions and marketPositions resolvers have been removed as they are not used by the frontend
+    // The frontend uses useUserOrders hook directly with the subgraph
 
     orders: async (
       _: unknown,
@@ -126,6 +102,44 @@ export const marketResolvers: {
       } catch (error) {
         console.error(`Error fetching orders for market ${marketId}:`, error);
         throw errorHandler.handle(error);
+      }
+    },
+
+    cycleStatus: async (): Promise<CycleStatus | null> => {
+      try {
+        const cycleInfo = await schedulerService.getCycleInfo();
+        if (!cycleInfo) return null;
+
+        const { status, bufferEndTime, globalExpiry, isInBuffer } = cycleInfo;
+
+        // Map backend status to frontend enum
+        let frontendStatus: CycleStatusEnum;
+        switch (status) {
+          case BackendCycleStatus.ACTIVE:
+            frontendStatus = CycleStatusEnum.ACTIVE;
+            break;
+          case BackendCycleStatus.BUFFER:
+            frontendStatus = CycleStatusEnum.BUFFER;
+            break;
+          case BackendCycleStatus.ENDING:
+            frontendStatus = CycleStatusEnum.ENDING;
+            break;
+          case BackendCycleStatus.ENDED:
+            frontendStatus = CycleStatusEnum.ENDED;
+            break;
+          default:
+            frontendStatus = CycleStatusEnum.NOT_STARTED;
+        }
+
+        return {
+          status: frontendStatus,
+          bufferEndTime: bufferEndTime ? bufferEndTime.toString() : undefined,
+          globalExpiry: globalExpiry ? globalExpiry.toString() : undefined,
+          isInBuffer: isInBuffer || false,
+        };
+      } catch (error) {
+        console.error("Error fetching cycle status:", error);
+        return null;
       }
     },
   },

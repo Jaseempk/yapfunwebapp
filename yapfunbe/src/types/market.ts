@@ -23,6 +23,21 @@ export enum OrderStatus {
   CANCELLED = "CANCELLED",
 }
 
+export enum CycleStatusEnum {
+  NOT_STARTED = "NOT_STARTED",
+  ACTIVE = "ACTIVE",
+  ENDING = "ENDING",
+  BUFFER = "BUFFER",
+  ENDED = "ENDED",
+}
+
+export interface CycleStatus {
+  status: CycleStatusEnum;
+  bufferEndTime?: string;
+  globalExpiry?: string;
+  isInBuffer: boolean;
+}
+
 export interface PricePoint {
   price: number;
   timestamp: string;
@@ -95,16 +110,7 @@ export interface QueryResolvers {
     args: { id: string },
     context: MarketResolverContext
   ) => Promise<Market | null>;
-  positions: (
-    parent: unknown,
-    args: { trader: string },
-    context: MarketResolverContext
-  ) => Promise<Position[]>;
-  marketPositions: (
-    parent: unknown,
-    args: { marketId: string },
-    context: MarketResolverContext
-  ) => Promise<Position[]>;
+  // positions and marketPositions resolvers have been removed as they are not used by the frontend
   orders: (
     parent: unknown,
     args: { trader: string },
@@ -115,6 +121,11 @@ export interface QueryResolvers {
     args: { marketId: string },
     context: MarketResolverContext
   ) => Promise<Order[]>;
+  cycleStatus: (
+    parent: unknown,
+    args: unknown,
+    context: MarketResolverContext
+  ) => Promise<CycleStatus | null>;
 }
 
 export interface MutationResolvers {

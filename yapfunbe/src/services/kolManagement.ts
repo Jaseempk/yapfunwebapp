@@ -1,10 +1,16 @@
 import { ethers } from "ethers";
-import { KOLData, CrashedOutKOL, CycleStatus } from "../types/marketCycle";
+import {
+  KOLData,
+  CrashedOutKOL,
+  CycleStatus,
+  MarketData,
+} from "../types/marketCycle";
 import { marketCycleService } from "./marketCycle";
 import { provider } from "./contract";
 import { orderBookAbi } from "../abi/orderBook";
 import { KaitoApiService } from "./kaitoApi";
-import { yapOracleAbi, yapOracleCA } from "src/abi/yapOracle";
+import { yapOracleAbi, yapOracleCA } from "../abi/yapOracle";
+import { redisService } from "./redisService";
 
 interface KaitoResponse {
   kols: Array<{
@@ -46,12 +52,29 @@ class KOLManagementService {
         // Update KOLs and track changes
         await marketCycleService.updateKols(newTopKols);
 
+        // Record mindshare values for active markets
+        if (currentCycle) {
+          for (const kol of currentCycle.activeKols) {
+            if (kol.marketAddress) {
+              const kolData = newTopKols.find((k) => k.id === kol.id);
+              if (kolData) {
+                await marketCycleService.recordMindshare(
+                  kol.marketAddress,
+                  kolData.mindshare
+                );
+              }
+            }
+          }
+        }
+
         // Handle crashed out KOLs
         await this.updateCrashedOutKolData();
 
         // Check if cycle needs to end
         if (await marketCycleService.checkCycleEnd()) {
-          await this.startCycleEnd(newTopKols);
+          console.log("Cycle end detected in KOL management service");
+          // Let the scheduler handle the cycle end process
+          await marketCycleService.startCycleEnd();
         }
       }
     } finally {
@@ -79,20 +102,30 @@ class KOLManagementService {
         }
 
         // Update oracle contract with fresh mindshare value
-        const contract = new ethers.Contract(
-          yapOracleCA,
-          yapOracleAbi,
+        const signer = new ethers.Wallet(
+          process.env.PRIVATE_KEY || "",
           provider
         );
+        const contract = new ethers.Contract(yapOracleCA, yapOracleAbi, signer);
 
         console.log(
           `Updating KOL ${kol.id} with new mindshare: ${freshData.mindshare}`
         );
-        await contract.updateCrashedOutKolData(
+
+        const tx = await contract.updateCrashedOutKolData(
           kol.id,
           freshData.rank,
           freshData.mindshare
         );
+        await tx.wait();
+
+        // Record mindshare for the market
+        if (kol.marketAddress) {
+          await marketCycleService.recordMindshare(
+            kol.marketAddress,
+            freshData.mindshare
+          );
+        }
 
         // Add delay between updates to avoid rate limiting
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -105,55 +138,80 @@ class KOLManagementService {
     }
   }
 
-  // Handle cycle end process
-  private async startCycleEnd(currentTopKols: KOLData[]): Promise<void> {
-    await marketCycleService.startCycleEnd();
-
-    // Close all positions for each market
-    const cycle = await marketCycleService.getCurrentCycle();
-    if (!cycle) return;
-
-    // Get all markets with active positions
-    const activeMarkets = [...cycle.activeKols, ...cycle.crashedOutKols]
-      .filter((kol) => kol.marketAddress)
-      .map((kol) => kol.marketAddress!);
-
-    // Close positions for each market
-    for (const marketAddress of activeMarkets) {
-      const positions = await marketCycleService.getActivePositions(
-        marketAddress
+  // Deploy a new market for a KOL with dynamic expiry
+  async deployMarketWithExpiry(
+    kolId: number,
+    expiresAt: number
+  ): Promise<string | null> {
+    try {
+      // This is a placeholder - in a real implementation, you would call
+      // the market deployment service to deploy a new market
+      console.log(
+        `Deploying market for KOL ${kolId} with expiry ${new Date(
+          expiresAt
+        ).toISOString()}`
       );
-      const contract = new ethers.Contract(
+
+      // Mock implementation - in reality this would call the deployment service
+      // const marketAddress = await marketDeploymentService.deployMarket(kolId.toString());
+
+      // For now, return null to indicate this is not implemented
+      return null;
+    } catch (error) {
+      console.error(`Failed to deploy market for KOL ${kolId}:`, error);
+      return null;
+    }
+  }
+
+  // Reset a market with dynamic expiry
+  async resetMarketWithExpiry(
+    marketAddress: string,
+    kolId: number,
+    expiresAt: number
+  ): Promise<boolean> {
+    try {
+      console.log(
+        `Resetting market ${marketAddress} for KOL ${kolId} with expiry ${new Date(
+          expiresAt
+        ).toISOString()}`
+      );
+
+      // Get mindshare values for reset
+      const mindshares = await marketCycleService.getMindshares(marketAddress);
+
+      // If no mindshares recorded, use the current mindshare from Kaito
+      if (mindshares.length === 0) {
+        const kolData = await KaitoApiService.getIndividualKOLData(
+          kolId.toString()
+        );
+        if (kolData) {
+          mindshares.push(kolData.mindshare);
+        } else {
+          // Fallback to a default value if needed
+          mindshares.push(1000); // Default mindshare value
+        }
+      }
+
+      // Reset the market with the collected mindshares and new expiry
+      await marketCycleService.resetMarket(
         marketAddress,
-        orderBookAbi,
-        provider
+        mindshares,
+        expiresAt
       );
 
-      // Close each position
-      for (const tokenId of positions) {
-        try {
-          await contract.closePosition(tokenId);
-        } catch (error) {
-          console.error(
-            `Failed to close position ${tokenId} for market ${marketAddress}:`,
-            error
-          );
-        }
-      }
+      // Update market data in Redis
+      const marketData: MarketData = {
+        marketAddress,
+        kolId,
+        expiresAt,
+        mindshares: [],
+      };
+      await redisService.setMarketData(marketAddress, marketData);
 
-      // Reset market with new mindshare values
-      const marketKol = currentTopKols.find(
-        (k) => k.marketAddress === marketAddress
-      );
-      if (marketKol) {
-        try {
-          await marketCycleService.resetMarket(marketAddress, [
-            marketKol.mindshare,
-          ]);
-        } catch (error) {
-          console.error(`Failed to reset market ${marketAddress}:`, error);
-        }
-      }
+      return true;
+    } catch (error) {
+      console.error(`Failed to reset market ${marketAddress}:`, error);
+      return false;
     }
   }
 

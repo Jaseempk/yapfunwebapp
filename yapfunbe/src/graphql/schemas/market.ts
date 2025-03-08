@@ -63,13 +63,29 @@ export const marketTypeDefs = `#graphql
     CANCELLED
   }
 
+  enum CycleStatusEnum {
+    NOT_STARTED
+    ACTIVE
+    ENDING
+    BUFFER
+    ENDED
+  }
+
+  type CycleStatus {
+    status: CycleStatusEnum!
+    bufferEndTime: String
+    globalExpiry: String
+    isInBuffer: Boolean!
+  }
+
   type Query {
     markets: [Market!]!
     market(id: ID!): Market
-    positions(trader: String!): [Position!]!
-    marketPositions(marketId: ID!): [Position!]!
+    # positions and marketPositions queries have been removed as they are not used by the frontend
+    # The frontend uses useUserOrders hook directly with the subgraph
     orders(trader: String!): [Order!]!
     marketOrders(marketId: ID!): [Order!]!
+    cycleStatus: CycleStatus
   }
 
   input CreatePositionInput {

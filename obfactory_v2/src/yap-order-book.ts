@@ -80,6 +80,7 @@ export function handleOrderCreated(event: OrderCreatedEvent): void {
   entity.orderId = event.params.orderId;
   entity.trader = event.params.trader;
   entity.kolId = event.params.kolId;
+  entity.market = event.params.market;
   entity.isLong = event.params.isLong;
   entity.mindshareValue = event.params.mindshareValue;
   entity.quantity = event.params.quantity;

@@ -1,4 +1,4 @@
-export const obfCA = "0x7627F934F4f32fd34C1eCb1ec938bf64b0149Aa9";
+export const obfCA = "0xA76EAb9659390b0B7Bf1CE7Eb6d7cC6C90487edB";
 export const obFAbi = [
   {
     inputs: [{ internalType: "address", name: "_yapEscrow", type: "address" }],
@@ -14,6 +14,7 @@ export const obFAbi = [
     name: "AccessControlUnauthorizedAccount",
     type: "error",
   },
+  { inputs: [], name: "YOBF__InvalidExpiryTime", type: "error" },
   { inputs: [], name: "YOBF__InvalidKolId", type: "error" },
   { inputs: [], name: "YOBF__InvalidOracle", type: "error" },
   { inputs: [], name: "YOBF__KOLOrderBookAlreadyExist", type: "error" },
@@ -147,6 +148,7 @@ export const obFAbi = [
     inputs: [
       { internalType: "uint256", name: "kolId", type: "uint256" },
       { internalType: "address", name: "_oracle", type: "address" },
+      { internalType: "uint256", name: "expiresAt", type: "uint256" },
     ],
     name: "initialiseMarket",
     outputs: [{ internalType: "address", name: "", type: "address" }],

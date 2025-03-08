@@ -3,12 +3,15 @@ import axios from "axios";
 import { kolManagementService } from "./kolManagement";
 import { marketCycleService } from "./marketCycle";
 import { redisClient } from "../config/redis";
+import { CycleStatus } from "../types/marketCycle";
+import { redisService } from "./redisService";
 
 const KAITO_API_URL = process.env.KAITO_API_URL;
 const KAITO_API_KEY = process.env.KAITO_API_KEY;
 
 class SchedulerService {
   private kaitoUpdateJob: CronJob;
+  private cycleCheckJob: CronJob;
   private redisHealthCheckJob: CronJob;
   private isRedisHealthy: boolean = false;
 
@@ -17,6 +20,12 @@ class SchedulerService {
     this.kaitoUpdateJob = new CronJob(
       "0 * * * *",
       this.processKaitoUpdate.bind(this)
+    );
+
+    // Check cycle status every 5 minutes
+    this.cycleCheckJob = new CronJob(
+      "*/5 * * * *",
+      this.checkCycleStatus.bind(this)
     );
 
     // Check Redis health every minute
@@ -39,14 +48,19 @@ class SchedulerService {
     }
 
     this.kaitoUpdateJob.start();
+    this.cycleCheckJob.start();
     this.redisHealthCheckJob.start();
     console.log("Scheduler started successfully");
+
+    // Initial cycle check
+    await this.checkCycleStatus();
   }
 
   // Stop the scheduler
   stop(): void {
     console.log("Stopping market cycle scheduler...");
     this.kaitoUpdateJob.stop();
+    this.cycleCheckJob.stop();
     this.redisHealthCheckJob.stop();
   }
 
@@ -67,6 +81,7 @@ class SchedulerService {
         // If lastDate exists, the job is running
         console.log("Stopping jobs due to Redis failure");
         this.kaitoUpdateJob.stop();
+        this.cycleCheckJob.stop();
       }
 
       // Attempt to reconnect Redis
@@ -78,13 +93,153 @@ class SchedulerService {
     }
   }
 
-  // Process Kaito API update
-  private async processKaitoUpdate(): Promise<void> {
+  // Check cycle status and handle transitions
+  private async checkCycleStatus(): Promise<void> {
     if (!this.isRedisHealthy) {
-      console.log("Skipping Kaito update: Redis is not healthy");
+      console.log("Skipping cycle check: Redis is not healthy");
       return;
     }
 
+    try {
+      const status = await marketCycleService.getCycleStatus();
+      const cycle = await marketCycleService.getCurrentCycle();
+
+      if (!cycle) {
+        console.log("No active cycle found");
+        return;
+      }
+
+      console.log(`Current cycle status: ${status}`);
+
+      switch (status) {
+        case CycleStatus.ACTIVE:
+          // Check if cycle needs to end
+          if (await marketCycleService.checkCycleEnd()) {
+            console.log("Cycle end detected, starting closing process");
+            await this.handleCycleEnd(cycle.id);
+          }
+          break;
+
+        case CycleStatus.ENDING:
+          // Already in ending state, check if all positions are closed
+          await this.checkEndingProgress(cycle.id);
+          break;
+
+        case CycleStatus.BUFFER:
+          // Check if buffer period has ended
+          if (await marketCycleService.checkBufferEnd()) {
+            console.log("Buffer period ended, starting new cycle");
+            await this.startNewCycle();
+          }
+          break;
+
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to check cycle status:", error);
+    }
+  }
+
+  // Handle cycle end process
+  private async handleCycleEnd(cycleId: string): Promise<void> {
+    try {
+      // Start cycle end process
+      await marketCycleService.startCycleEnd();
+
+      // Get all active markets
+      const activeMarkets = await redisService.getAllActiveMarkets(cycleId);
+      console.log(`Found ${activeMarkets.length} active markets to close`);
+
+      // Close positions for each market
+      for (const marketAddress of activeMarkets) {
+        try {
+          console.log(`Closing positions for market ${marketAddress}`);
+          await marketCycleService.closeAllPositions(marketAddress);
+        } catch (error) {
+          console.error(
+            `Failed to close positions for market ${marketAddress}:`,
+            error
+          );
+          // Continue with other markets even if one fails
+        }
+      }
+
+      // Start buffer period
+      await marketCycleService.startBufferPeriod();
+    } catch (error) {
+      console.error("Failed to handle cycle end:", error);
+    }
+  }
+
+  // Check if all positions are closed during ENDING state
+  private async checkEndingProgress(cycleId: string): Promise<void> {
+    try {
+      const activeMarkets = await redisService.getAllActiveMarkets(cycleId);
+      let allClosed = true;
+
+      // Check if any market still has active positions
+      for (const marketAddress of activeMarkets) {
+        const positions = await marketCycleService.getActivePositions(
+          marketAddress
+        );
+        if (positions.length > 0) {
+          allClosed = false;
+          console.log(
+            `Market ${marketAddress} still has ${positions.length} active positions`
+          );
+
+          // Try to close positions again
+          try {
+            await marketCycleService.closeAllPositions(marketAddress);
+          } catch (error) {
+            console.error(
+              `Failed to close positions for market ${marketAddress}:`,
+              error
+            );
+          }
+        }
+      }
+
+      // If all positions are closed, start buffer period
+      if (allClosed) {
+        console.log("All positions closed, starting buffer period");
+        await marketCycleService.startBufferPeriod();
+      }
+    } catch (error) {
+      console.error("Failed to check ending progress:", error);
+    }
+  }
+
+  // Start a new cycle
+  private async startNewCycle(): Promise<void> {
+    try {
+      // Get latest KOL data
+      const kaitoData = await this.fetchKaitoData();
+      if (!kaitoData || !kaitoData.kols || kaitoData.kols.length === 0) {
+        console.error("Failed to fetch KOL data for new cycle");
+        return;
+      }
+
+      // Transform Kaito data to our format
+      const initialKols = kaitoData.kols.map((kol: any) => ({
+        id: kol.id,
+        mindshare: kol.mindshare,
+        username: kol.username,
+      }));
+
+      // TODO: Deploy market for first KOL and initialize cycle
+      // This would require integration with market deployment service
+      console.log("New cycle initialization would happen here");
+      // await marketDeploymentService.deployMarket(initialKols[0].id);
+      // await marketCycleService.initializeCycle(marketAddress, initialKols);
+    } catch (error) {
+      console.error("Failed to start new cycle:", error);
+    }
+  }
+
+  // Fetch data from Kaito API
+  private async fetchKaitoData(): Promise<any> {
     try {
       console.log("Fetching Kaito API data...");
 
@@ -99,8 +254,48 @@ class SchedulerService {
         throw new Error("Invalid Kaito API response");
       }
 
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch Kaito data:", error);
+      return null;
+    }
+  }
+
+  // Process Kaito API update
+  private async processKaitoUpdate(): Promise<void> {
+    if (!this.isRedisHealthy) {
+      console.log("Skipping Kaito update: Redis is not healthy");
+      return;
+    }
+
+    try {
+      const kaitoData = await this.fetchKaitoData();
+      if (!kaitoData) return;
+
       // Process the update
-      await kolManagementService.processKaitoUpdate(response.data);
+      await kolManagementService.processKaitoUpdate(kaitoData);
+
+      // Record mindshare values for active markets
+      const cycleId = await redisService.getCurrentCycle();
+      if (cycleId) {
+        const activeMarkets = await redisService.getAllActiveMarkets(cycleId);
+
+        for (const marketAddress of activeMarkets) {
+          const kol = await redisService.getKOLByMarketAddress(
+            cycleId,
+            marketAddress
+          );
+          if (kol) {
+            const kolData = kaitoData.kols.find((k: any) => k.id === kol.id);
+            if (kolData) {
+              await marketCycleService.recordMindshare(
+                marketAddress,
+                kolData.mindshare
+              );
+            }
+          }
+        }
+      }
 
       console.log("Kaito update processed successfully");
     } catch (error) {
@@ -114,11 +309,17 @@ class SchedulerService {
       throw new Error("Redis is not available");
     }
 
+    const cycle = await marketCycleService.getCurrentCycle();
+    const status = await marketCycleService.getCycleStatus();
+
     return {
-      currentCycle: await marketCycleService.getCurrentCycle(),
-      status: await marketCycleService.getCycleStatus(),
+      currentCycle: cycle,
+      status: status,
       topKols: await kolManagementService.getCurrentTopKOLs(),
       crashedOutKols: await kolManagementService.getCrashedOutKOLs(),
+      bufferEndTime: cycle?.bufferEndTime,
+      globalExpiry: cycle?.globalExpiry,
+      isInBuffer: status === CycleStatus.BUFFER,
     };
   }
 
