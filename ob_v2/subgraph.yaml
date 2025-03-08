@@ -8,9 +8,9 @@ dataSources:
     name: YapOrderBook
     network: base-sepolia
     source:
-      address: "0xD2bB8F9cb41a03a5c93770dfe508F00Ee6FB5075"
+      address: "0x575da16314063560ce3be4F9F44271beD8FBa5f9"
       abi: YapOrderBook
-      startBlock: 22619466
+      startBlock: 22833849
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -35,7 +35,7 @@ dataSources:
           handler: handleMarketReset
         - event: OrderCanceled(indexed uint256,(address,uint256,uint256,bool,uint256,uint256,uint256,uint256,uint8),uint256)
           handler: handleOrderCanceled
-        - event: OrderCreated(indexed uint256,indexed address,indexed uint256,bool,uint256,uint256,uint256,uint256)
+        - event: OrderCreated(indexed uint256,indexed address,indexed uint256,address,bool,uint256,uint256,uint256,uint256)
           handler: handleOrderCreated
         - event: OrderFilled(indexed uint256,uint256,address)
           handler: handleOrderFilled

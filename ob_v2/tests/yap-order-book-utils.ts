@@ -81,6 +81,7 @@ export function createOrderCreatedEvent(
   orderId: BigInt,
   trader: Address,
   kolId: BigInt,
+  market: Address,
   isLong: boolean,
   mindshareValue: BigInt,
   quantity: BigInt,
@@ -102,6 +103,9 @@ export function createOrderCreatedEvent(
   )
   orderCreatedEvent.parameters.push(
     new ethereum.EventParam("kolId", ethereum.Value.fromUnsignedBigInt(kolId))
+  )
+  orderCreatedEvent.parameters.push(
+    new ethereum.EventParam("market", ethereum.Value.fromAddress(market))
   )
   orderCreatedEvent.parameters.push(
     new ethereum.EventParam("isLong", ethereum.Value.fromBoolean(isLong))

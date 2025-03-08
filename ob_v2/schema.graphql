@@ -38,6 +38,7 @@ type OrderCreated @entity(immutable: true) {
   orderId: BigInt! # uint256
   trader: Bytes! # address
   kolId: BigInt! # uint256
+  market: Bytes! # address
   isLong: Boolean! # bool
   mindshareValue: BigInt! # uint256
   quantity: BigInt! # uint256

@@ -5,7 +5,9 @@
       { "internalType": "address", "name": "_feeCollector", "type": "address" },
       { "internalType": "address", "name": "_escrow", "type": "address" },
       { "internalType": "address", "name": "yapOracle", "type": "address" },
-      { "internalType": "uint256", "name": "_kolId", "type": "uint256" }
+      { "internalType": "uint256", "name": "_kolId", "type": "uint256" },
+      { "internalType": "uint256", "name": "expirersAt", "type": "uint256" },
+      { "internalType": "address", "name": "admin", "type": "address" }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
@@ -19,6 +21,7 @@
     "name": "AccessControlUnauthorizedAccount",
     "type": "error"
   },
+  { "inputs": [], "name": "YOB_InvalidMarketDuration", "type": "error" },
   { "inputs": [], "name": "YOB__CallerIsNotTrader", "type": "error" },
   { "inputs": [], "name": "YOB__CantCloseBeforeExpiry", "type": "error" },
   { "inputs": [], "name": "YOB__CantResetActiveMarket", "type": "error" },
@@ -136,6 +139,12 @@
         "internalType": "uint256",
         "name": "kolId",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "market",
+        "type": "address"
       },
       {
         "indexed": false,
@@ -317,6 +326,47 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "components": [
+          { "internalType": "address", "name": "trader", "type": "address" },
+          {
+            "internalType": "uint256",
+            "name": "positionId",
+            "type": "uint256"
+          },
+          { "internalType": "uint256", "name": "kolId", "type": "uint256" },
+          { "internalType": "bool", "name": "isLong", "type": "bool" },
+          {
+            "internalType": "uint256",
+            "name": "mindshareValue",
+            "type": "uint256"
+          },
+          { "internalType": "uint256", "name": "quantity", "type": "uint256" },
+          {
+            "internalType": "uint256",
+            "name": "filledQuantity",
+            "type": "uint256"
+          },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          {
+            "internalType": "enum YapOrderBook.OrderStatus",
+            "name": "status",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct YapOrderBook.Order",
+        "name": "pos",
+        "type": "tuple"
+      },
+      { "internalType": "uint256", "name": "currentPrice", "type": "uint256" }
+    ],
+    "name": "_calculatePnL",
+    "outputs": [{ "internalType": "int256", "name": "", "type": "int256" }],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "_getOraclePrice",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
@@ -465,6 +515,13 @@
   },
   {
     "inputs": [],
+    "name": "kolId",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "marketVolume",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
@@ -524,7 +581,12 @@
   },
   {
     "inputs": [
-      { "internalType": "uint256[]", "name": "mindshares", "type": "uint256[]" }
+      {
+        "internalType": "uint256[]",
+        "name": "mindshares",
+        "type": "uint256[]"
+      },
+      { "internalType": "uint256", "name": "expiresAt", "type": "uint256" }
     ],
     "name": "resetMarket",
     "outputs": [],
