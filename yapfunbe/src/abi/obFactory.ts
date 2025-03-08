@@ -15,6 +15,7 @@ export const obFAbi = [
     name: "AccessControlUnauthorizedAccount",
     type: "error",
   },
+  { inputs: [], name: "YOBF__InvalidExpiryTime", type: "error" },
   { inputs: [], name: "YOBF__InvalidKolId", type: "error" },
   { inputs: [], name: "YOBF__InvalidOracle", type: "error" },
   { inputs: [], name: "YOBF__KOLOrderBookAlreadyExist", type: "error" },
@@ -148,6 +149,7 @@ export const obFAbi = [
     inputs: [
       { internalType: "uint256", name: "kolId", type: "uint256" },
       { internalType: "address", name: "_oracle", type: "address" },
+      { internalType: "uint256", name: "expiresAt", type: "uint256" },
     ],
     name: "initialiseMarket",
     outputs: [{ internalType: "address", name: "", type: "address" }],

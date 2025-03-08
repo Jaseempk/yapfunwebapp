@@ -11,7 +11,7 @@ const timeRanges = [
 ];
 
 export default function TimeFilter({
-  active = "30d",
+  active = "7d",
   onChange,
 }: {
   active: string;

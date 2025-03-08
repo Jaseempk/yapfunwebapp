@@ -9,6 +9,7 @@ import {
 } from "../types/market";
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
+import { subgraphService } from "./subgraph";
 
 // Gas price optimization settings (only needed for state-changing transactions)
 const DEFAULT_GAS_SETTINGS = {
@@ -55,19 +56,23 @@ export const provider = new ethers.providers.JsonRpcProvider(
 );
 
 // Helper function to delay execution
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Function to test provider connection
-async function testProvider(provider: ethers.providers.Provider): Promise<boolean> {
+async function testProvider(
+  provider: ethers.providers.Provider
+): Promise<boolean> {
   try {
     const networkTest = provider.getNetwork();
     const blockTest = provider.getBlockNumber();
-    
+
     // Use Promise.race to implement timeout
     const timeoutPromise = delay(PROVIDER_CONFIG.timeout);
     const result = await Promise.race([
       Promise.all([networkTest, blockTest]),
-      timeoutPromise.then(() => Promise.reject(new Error("Provider test timeout")))
+      timeoutPromise.then(() =>
+        Promise.reject(new Error("Provider test timeout"))
+      ),
     ]);
 
     return Array.isArray(result); // If we got an array, the tests passed
@@ -80,13 +85,15 @@ async function testProvider(provider: ethers.providers.Provider): Promise<boolea
 // Function to get a working provider with improved error handling
 async function getWorkingProvider(): Promise<ethers.providers.Provider> {
   let lastError: Error | null = null;
-  
+
   // Try each RPC URL with retries
   for (const url of RPC_URLS) {
     for (let attempt = 1; attempt <= PROVIDER_CONFIG.maxRetries; attempt++) {
       try {
-        console.log(`Attempting to connect to ${url} (attempt ${attempt}/${PROVIDER_CONFIG.maxRetries})`);
-        
+        console.log(
+          `Attempting to connect to ${url} (attempt ${attempt}/${PROVIDER_CONFIG.maxRetries})`
+        );
+
         const provider = new ethers.providers.JsonRpcProvider(
           {
             url,
@@ -114,7 +121,8 @@ async function getWorkingProvider(): Promise<ethers.providers.Provider> {
 
         // If this isn't the last attempt, wait before retrying
         if (attempt < PROVIDER_CONFIG.maxRetries) {
-          const retryDelay = PROVIDER_CONFIG.retryDelay * Math.pow(2, attempt - 1);
+          const retryDelay =
+            PROVIDER_CONFIG.retryDelay * Math.pow(2, attempt - 1);
           await delay(retryDelay);
         }
       }
@@ -123,7 +131,9 @@ async function getWorkingProvider(): Promise<ethers.providers.Provider> {
 
   // If we get here, all providers failed
   throw new Error(
-    `All RPC endpoints failed. Last error: ${lastError?.message || "Unknown error"}`
+    `All RPC endpoints failed. Last error: ${
+      lastError?.message || "Unknown error"
+    }`
   );
 }
 
@@ -156,7 +166,7 @@ async function getProvider(): Promise<ethers.providers.Provider> {
 
   // Get a new working provider
   const newProvider = await getWorkingProvider();
-  
+
   // Cache the new provider
   cachedProvider = {
     provider: newProvider,
@@ -202,6 +212,41 @@ const getContract = async (marketAddress: string): Promise<ethers.Contract> => {
   return contract;
 };
 
+// Interface for OrderCreated event from subgraph
+interface OrderCreatedEvent {
+  _totalVolume: string;
+  blockTimestamp: string;
+}
+
+// Helper function to fetch the latest OrderCreated event for a market
+async function getLatestOrderCreatedEvent(
+  marketAddress: string
+): Promise<OrderCreatedEvent | null> {
+  try {
+    // We'll use the existing getMarketVolume method from subgraphService as a starting point
+    // But we need to extend it to get the latest OrderCreated event with volume data
+
+    // First try to get volume directly from subgraph service
+    const volume = await subgraphService.getMarketVolume(marketAddress);
+    if (volume > 0) {
+      // If we got a valid volume, return it in the expected format
+      return {
+        _totalVolume: (volume * 1e6).toString(), // Convert back to raw format
+        blockTimestamp: Math.floor(Date.now() / 1000).toString(), // Current timestamp
+      };
+    }
+
+    // If direct method failed, return null to trigger fallback
+    return null;
+  } catch (error) {
+    console.error(
+      `[Subgraph] Error fetching volume for market ${marketAddress}:`,
+      error
+    );
+    return null;
+  }
+}
+
 export const contractService = {
   async getMarketVolume(marketAddress: string): Promise<number> {
     try {
@@ -211,6 +256,24 @@ export const contractService = {
       ) {
         return 0;
       }
+
+      // First try to get volume from subgraph
+      console.log(
+        `[Market Service] Getting volume via subgraph for market: ${marketAddress}`
+      );
+      const latestEvent = await getLatestOrderCreatedEvent(marketAddress);
+
+      // If we got a valid volume from subgraph, return it
+      if (latestEvent !== null) {
+        const volume = Number(latestEvent._totalVolume) / 1e6;
+        console.log(`[Market Service] Found volume from subgraph: ${volume}`);
+        return volume;
+      }
+
+      // If subgraph query failed or returned no results, fall back to RPC
+      console.log(
+        `[Market Service] Subgraph volume lookup failed, falling back to RPC for market: ${marketAddress}`
+      );
 
       // Add retry logic with exponential backoff
       let retries = 3;
@@ -246,7 +309,7 @@ export const contractService = {
 
       // Call view functions without gas parameters
       const [volume, price] = await Promise.all([
-        contract.marketVolume().catch(() => 0),
+        this.getMarketVolume(marketId).catch(() => 0),
         contract._getOraclePrice().catch(() => 0),
       ]);
 

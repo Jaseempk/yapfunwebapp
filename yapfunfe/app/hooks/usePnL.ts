@@ -27,7 +27,7 @@ export function usePnL() {
 
         let total = 0;
         for (const order of orders) {
-          if (order.status === 1) {
+          if (order.status === 1 || order.status === 2) {
             // Only count completed orders
             // Get market address for this KOL
             const marketAddress = (await readContract(config, {
@@ -55,8 +55,7 @@ export function usePnL() {
             );
 
             // Calculate PnL based on position type and price difference
-            const priceDiff =
-              currentMindshare / 1e18 - order.mindshareValue / 1e18;
+            const priceDiff = (currentMindshare - order.mindshareValue) / 1e18;
             const orderPnL = order.isLong ? priceDiff : -priceDiff;
 
             // Multiply by quantity and normalize

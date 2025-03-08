@@ -4,6 +4,7 @@ import { yapOracleCA } from "../../abi/yapOracle";
 import { marketEvents, MarketEventType } from "./events";
 import { kolService } from "../kol";
 import { errorHandler } from "../error";
+import { subgraphService } from "../subgraph";
 
 type RetryableOperation<T> = () => Promise<T>;
 
@@ -116,16 +117,25 @@ export class MarketDeploymentService {
 
   async checkMarketExists(kolId: string): Promise<boolean> {
     try {
-      const kolIdBN = ethers.BigNumber.from(kolId);
+      // First try using subgraph
       console.log(
-        `[Market Service] Checking market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+        `[Market Service] Checking market for KOL ID via subgraph: ${kolId}`
       );
+      const marketAddress = await subgraphService.checkMarketExists(kolId);
+      if (marketAddress) {
+        return true;
+      }
 
-      const marketAddress = await this.withRetry<string>(
+      // If subgraph returns null (not found or error), fallback to RPC
+      console.log(
+        `[Market Service] Subgraph check failed, falling back to RPC for KOL ID: ${kolId}`
+      );
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      const rpcMarketAddress = await this.withRetry<string>(
         async () => await this.factoryContract.kolIdToMarket(kolIdBN)
       );
 
-      return marketAddress !== "0x0000000000000000000000000000000000000000";
+      return rpcMarketAddress !== "0x0000000000000000000000000000000000000000";
     } catch (error) {
       console.error("Error checking market existence:", error);
       return false;
@@ -134,19 +144,28 @@ export class MarketDeploymentService {
 
   async getMarketAddress(kolId: string): Promise<string> {
     try {
-      const kolIdBN = ethers.BigNumber.from(kolId);
+      // First try using subgraph
       console.log(
-        `[Market Service] Getting market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+        `[Market Service] Getting market address via subgraph for KOL ID: ${kolId}`
       );
+      const marketAddress = await subgraphService.checkMarketExists(kolId);
+      if (marketAddress) {
+        return marketAddress;
+      }
 
-      const marketAddress = await this.withRetry<string>(
+      // If subgraph returns null (not found or error), fallback to RPC
+      console.log(
+        `[Market Service] Subgraph lookup failed, falling back to RPC for KOL ID: ${kolId}`
+      );
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      const rpcMarketAddress = await this.withRetry<string>(
         async () => await this.factoryContract.kolIdToMarket(kolIdBN)
       );
 
-      if (marketAddress === "0x0000000000000000000000000000000000000000") {
+      if (rpcMarketAddress === "0x0000000000000000000000000000000000000000") {
         throw new Error(`No market found for KOL ${kolId}`);
       }
-      return marketAddress;
+      return rpcMarketAddress;
     } catch (error) {
       console.error("Error getting market address:", error);
       throw errorHandler.handle(error);
