@@ -10,6 +10,7 @@ import {
 import { provider } from "./contract";
 import { orderBookAbi } from "../abi/orderBook";
 import { redisService } from "./redisService";
+import { mindshareStorageService } from "./mindshareStorage";
 
 const CYCLE_DURATION = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 const BUFFER_DURATION = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
@@ -89,6 +90,38 @@ class MarketCycleService {
       // Set cycle status to BUFFER
       await redisService.setCycleStatus(cycleId, CycleStatus.BUFFER);
 
+      // Store mindshare data for crashed out KOLs in Supabase
+      if (cycle.crashedOutKols && cycle.crashedOutKols.length > 0) {
+        console.log(
+          `Storing mindshare data for ${cycle.crashedOutKols.length} crashed out KOLs`
+        );
+
+        for (const crashedKol of cycle.crashedOutKols) {
+          if (crashedKol.marketAddress) {
+            // Get mindshare data from Redis
+            const mindshares = await this.getMindshares(
+              crashedKol.marketAddress
+            );
+
+            if (mindshares && mindshares.length > 0) {
+              // Store in Supabase
+              await mindshareStorageService.storeCrashedKOLMindshares(
+                crashedKol.marketAddress,
+                mindshares,
+                cycleId
+              );
+              console.log(
+                `Stored mindshare data for crashed KOL ${crashedKol.id} with market ${crashedKol.marketAddress}`
+              );
+            } else {
+              console.log(
+                `No mindshare data found for crashed KOL ${crashedKol.id}`
+              );
+            }
+          }
+        }
+      }
+
       console.log(`Started buffer period for cycle ${cycleId}`);
       console.log(
         `Buffer period ends at ${new Date(cycle.bufferEndTime).toISOString()}`
@@ -115,6 +148,150 @@ class MarketCycleService {
     } catch (error) {
       console.error("Failed to check buffer end:", error);
       return false;
+    }
+  }
+
+  // Handle the end of buffer period and start a new cycle
+  async handleBufferEnd(newTopKols: KOLData[]): Promise<void> {
+    try {
+      const oldCycleId = await redisService.getCurrentCycle();
+      if (!oldCycleId) {
+        throw new Error("No active cycle found");
+      }
+
+      const oldCycle = await redisService.getCycleData(oldCycleId);
+      if (!oldCycle) {
+        throw new Error("Failed to get current cycle data");
+      }
+
+      // Calculate new cycle parameters
+      const now = Date.now();
+      const newCycleId = now.toString();
+      const endTime = now + CYCLE_DURATION;
+      const bufferEndTime = endTime + BUFFER_DURATION;
+      const globalExpiry = endTime;
+
+      console.log(`Starting new cycle ${newCycleId} after buffer period`);
+      console.log(`New cycle ends at ${new Date(endTime).toISOString()}`);
+
+      // Create new cycle
+      const newCycle: MarketCycle = {
+        id: newCycleId,
+        startTime: now,
+        endTime: endTime,
+        bufferEndTime: bufferEndTime,
+        globalExpiry: globalExpiry,
+        activeKols: newTopKols,
+        crashedOutKols: [],
+      };
+
+      // Store new cycle data in Redis
+      await redisService.setCurrentCycle(newCycleId);
+      await redisService.setCycleData(newCycle);
+      await redisService.setActiveKOLs(newCycleId, newTopKols);
+      await redisService.setCycleStatus(newCycleId, CycleStatus.ACTIVE);
+      await redisService.setGlobalExpiry(newCycleId, globalExpiry);
+      await redisService.setBufferEndTime(newCycleId, bufferEndTime);
+
+      // Process each KOL in the new top 100
+      for (const kol of newTopKols) {
+        if (kol.marketAddress) {
+          // This KOL already has a market, reset it
+          console.log(
+            `Resetting market for KOL ${kol.id} at ${kol.marketAddress}`
+          );
+
+          // Calculate remaining time until global expiry
+          const expiresAt = globalExpiry;
+
+          // Check if this is a returning KOL (was not in previous cycle's top 100)
+          const wasInPreviousCycle = oldCycle.activeKols.some(
+            (k) => k.id === kol.id
+          );
+
+          if (!wasInPreviousCycle) {
+            // This is a returning KOL, check for stored mindshare data
+            console.log(`KOL ${kol.id} is returning from a previous cycle`);
+            const storedMindshares =
+              await mindshareStorageService.getStoredMindshares(
+                kol.marketAddress
+              );
+
+            if (storedMindshares && storedMindshares.length > 0) {
+              // Use stored mindshare data to reset market
+              console.log(
+                `Using stored mindshare data for returning KOL ${kol.id}`
+              );
+              await this.resetMarket(
+                kol.marketAddress,
+                storedMindshares,
+                expiresAt
+              );
+
+              // Clear the stored data after using it
+              await mindshareStorageService.clearStoredMindshares(
+                kol.marketAddress
+              );
+            } else {
+              // No stored data, use default values
+              console.log(
+                `No stored mindshare data found for returning KOL ${kol.id}, using defaults`
+              );
+              // Use a default array of mindshares (e.g., [100, 100, 100])
+              await this.resetMarket(
+                kol.marketAddress,
+                [100, 100, 100],
+                expiresAt
+              );
+            }
+          } else {
+            // Regular KOL from previous cycle, use Redis mindshare data
+            const mindshares = await this.getMindshares(kol.marketAddress);
+            if (mindshares && mindshares.length > 0) {
+              await this.resetMarket(kol.marketAddress, mindshares, expiresAt);
+            } else {
+              // Fallback if no mindshare data is available
+              await this.resetMarket(
+                kol.marketAddress,
+                [100, 100, 100],
+                expiresAt
+              );
+            }
+          }
+
+          // Initialize market position tracking for the new cycle
+          const position: MarketPosition = {
+            marketAddress: kol.marketAddress,
+            cycleId: newCycleId,
+            activeTokenIds: [],
+            isActive: true,
+          };
+          await redisService.setMarketPosition(kol.marketAddress, position);
+
+          // Initialize market data with new expiry
+          const marketData: MarketData = {
+            marketAddress: kol.marketAddress,
+            kolId: kol.id,
+            expiresAt: expiresAt,
+            mindshares: [],
+          };
+          await redisService.setMarketData(kol.marketAddress, marketData);
+        } else {
+          // This is a new KOL without a market, it will be handled by the market deployment service
+          console.log(
+            `New KOL ${kol.id} detected, will be handled by market deployment service`
+          );
+        }
+      }
+
+      console.log(`Successfully started new cycle ${newCycleId}`);
+    } catch (error) {
+      console.error("Failed to handle buffer end:", error);
+      throw new Error(
+        `Failed to handle buffer end: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -164,6 +341,32 @@ class MarketCycleService {
 
       await redisService.setCycleData(updatedCycle);
       await redisService.setActiveKOLs(cycleId, newTopKols);
+
+      // Check for returning KOLs (KOLs that were previously crashed out but are now back in top 100)
+      for (const kol of newTopKols) {
+        if (kol.marketAddress && !currentKolIds.has(kol.id)) {
+          // This is a returning KOL with an existing market
+          console.log(
+            `Detected returning KOL with ID ${kol.id} and market ${kol.marketAddress}`
+          );
+
+          // Check if we have stored mindshare data in Supabase
+          const storedMindshares =
+            await mindshareStorageService.getStoredMindshares(
+              kol.marketAddress
+            );
+          if (storedMindshares && storedMindshares.length > 0) {
+            console.log(
+              `Found stored mindshare data for returning KOL ${
+                kol.id
+              }: ${storedMindshares.join(", ")}`
+            );
+
+            // We'll handle the actual market reset in the cycle transition
+            // Just log for now that we found the data
+          }
+        }
+      }
     } catch (error) {
       console.error("Failed to update KOLs:", error);
       throw new Error("Failed to update KOLs");

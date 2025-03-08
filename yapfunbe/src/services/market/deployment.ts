@@ -5,6 +5,7 @@ import { marketEvents, MarketEventType } from "./events";
 import { kolService } from "../kol";
 import { errorHandler } from "../error";
 import { subgraphService } from "../subgraph";
+import { marketCycleService } from "../marketCycle";
 
 type RetryableOperation<T> = () => Promise<T>;
 
@@ -121,21 +122,29 @@ export class MarketDeploymentService {
       console.log(
         `[Market Service] Checking market for KOL ID via subgraph: ${kolId}`
       );
-      const marketAddress = await subgraphService.checkMarketExists(kolId);
-      if (marketAddress) {
-        return true;
+      try {
+        // If we get a response from the subgraph (even null), that's our answer
+        const marketAddress = await subgraphService.checkMarketExists(kolId);
+        // If marketAddress is not null, market exists
+        // If marketAddress is null, market doesn't exist
+        // Both are valid responses, no need for fallback
+        return marketAddress !== null;
+      } catch (subgraphError) {
+        // Only fallback to RPC if the subgraph query itself failed
+        console.log(
+          `[Market Service] Subgraph query failed, falling back to RPC for KOL ID: ${kolId}`
+        );
+        console.error("Subgraph error:", subgraphError);
+
+        const kolIdBN = ethers.BigNumber.from(kolId);
+        const rpcMarketAddress = await this.withRetry<string>(
+          async () => await this.factoryContract.kolIdToMarket(kolIdBN)
+        );
+
+        return (
+          rpcMarketAddress !== "0x0000000000000000000000000000000000000000"
+        );
       }
-
-      // If subgraph returns null (not found or error), fallback to RPC
-      console.log(
-        `[Market Service] Subgraph check failed, falling back to RPC for KOL ID: ${kolId}`
-      );
-      const kolIdBN = ethers.BigNumber.from(kolId);
-      const rpcMarketAddress = await this.withRetry<string>(
-        async () => await this.factoryContract.kolIdToMarket(kolIdBN)
-      );
-
-      return rpcMarketAddress !== "0x0000000000000000000000000000000000000000";
     } catch (error) {
       console.error("Error checking market existence:", error);
       return false;
@@ -148,24 +157,36 @@ export class MarketDeploymentService {
       console.log(
         `[Market Service] Getting market address via subgraph for KOL ID: ${kolId}`
       );
-      const marketAddress = await subgraphService.checkMarketExists(kolId);
-      if (marketAddress) {
-        return marketAddress;
-      }
+      try {
+        const marketAddress = await subgraphService.checkMarketExists(kolId);
+        if (marketAddress) {
+          return marketAddress;
+        }
 
-      // If subgraph returns null (not found or error), fallback to RPC
-      console.log(
-        `[Market Service] Subgraph lookup failed, falling back to RPC for KOL ID: ${kolId}`
-      );
-      const kolIdBN = ethers.BigNumber.from(kolId);
-      const rpcMarketAddress = await this.withRetry<string>(
-        async () => await this.factoryContract.kolIdToMarket(kolIdBN)
-      );
-
-      if (rpcMarketAddress === "0x0000000000000000000000000000000000000000") {
+        // If marketAddress is null, it means the market doesn't exist
         throw new Error(`No market found for KOL ${kolId}`);
+      } catch (subgraphError) {
+        // Only fallback to RPC if the subgraph query itself failed
+        // If the error is "No market found", rethrow it
+        if (subgraphError.message.includes("No market found")) {
+          throw subgraphError;
+        }
+
+        console.log(
+          `[Market Service] Subgraph lookup failed, falling back to RPC for KOL ID: ${kolId}`
+        );
+        console.error("Subgraph error:", subgraphError);
+
+        const kolIdBN = ethers.BigNumber.from(kolId);
+        const rpcMarketAddress = await this.withRetry<string>(
+          async () => await this.factoryContract.kolIdToMarket(kolIdBN)
+        );
+
+        if (rpcMarketAddress === "0x0000000000000000000000000000000000000000") {
+          throw new Error(`No market found for KOL ${kolId}`);
+        }
+        return rpcMarketAddress;
       }
-      return rpcMarketAddress;
     } catch (error) {
       console.error("Error getting market address:", error);
       throw errorHandler.handle(error);
@@ -180,10 +201,24 @@ export class MarketDeploymentService {
         throw new Error(`Market already exists for KOL ${kolId}`);
       }
 
+      // Get the current cycle's global expiry timestamp
+      const currentCycle = await marketCycleService.getCurrentCycle();
+      if (!currentCycle) {
+        throw new Error("No active market cycle found");
+      }
+
+      // Calculate expiry timestamp (remaining time until global expiry)
+      const expiresAt = currentCycle.globalExpiry;
+
       // Convert kolId to BigNumber and deploy new market with Oracle address
       const kolIdBN = ethers.BigNumber.from(kolId);
       console.log(
         `[Market Service] Deploying market for KOL ID (BigNumber): ${kolIdBN.toString()}`
+      );
+      console.log(
+        `[Market Service] Using expiry timestamp: ${new Date(
+          expiresAt
+        ).toISOString()}`
       );
 
       // Get optimized gas prices
@@ -193,10 +228,18 @@ export class MarketDeploymentService {
       // Prepare transaction with optimized gas settings
       const tx = await this.withRetry<ContractTransaction>(
         async () =>
-          await this.factoryContract.initialiseMarket(kolIdBN, yapOracleCA, {
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-          })
+          await this.factoryContract.initialiseMarket(
+            kolIdBN,
+            yapOracleCA,
+            expiresAt, // Pass the expiry timestamp as the third parameter
+            {
+              // Pass the BigNumber values directly, not the objects
+              maxFeePerGas: maxFeePerGas,
+              maxPriorityFeePerGas: maxPriorityFeePerGas,
+              // Fallback to legacy gas price if EIP-1559 is not supported
+              gasPrice: ethers.utils.parseUnits("1", "gwei"),
+            }
+          )
       );
 
       console.log(`[Market Service] Deploying market with transaction:`, {

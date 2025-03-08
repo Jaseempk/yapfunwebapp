@@ -15,6 +15,12 @@ const GET_CYCLE_STATUS = gql`
       bufferEndTime
       globalExpiry
       isInBuffer
+      crashedOutKols {
+        id
+        username
+        marketAddress
+        crashedOutAt
+      }
     }
   }
 `;
@@ -86,7 +92,8 @@ export default function CycleStatusDisplay() {
     return <div className="text-red-500">Error loading cycle status</div>;
   if (!data?.cycleStatus) return null;
 
-  const { status, isInBuffer } = data.cycleStatus;
+  const { status, isInBuffer, crashedOutKols } = data.cycleStatus;
+  const hasCrashedOutKols = crashedOutKols && crashedOutKols.length > 0;
 
   return (
     <Card className="w-full">
@@ -119,6 +126,41 @@ export default function CycleStatusDisplay() {
           {isInBuffer && (
             <div className="text-xs text-center text-muted-foreground mt-2">
               Trading is paused during the buffer period
+            </div>
+          )}
+
+          {/* Crashed Out KOLs Section */}
+          {hasCrashedOutKols && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <h4 className="text-sm font-medium mb-2">
+                Crashed Out KOLs ({crashedOutKols.length})
+              </h4>
+              <div className="max-h-40 overflow-y-auto">
+                <ul className="space-y-2">
+                  {crashedOutKols.map((kol: any) => (
+                    <li key={kol.id} className="text-xs">
+                      <div className="flex justify-between">
+                        <span className="font-medium">
+                          {kol.username || `KOL #${kol.id}`}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {new Date(
+                            parseInt(kol.crashedOutAt)
+                          ).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground truncate">
+                        Market: {kol.marketAddress.substring(0, 8)}...
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {isInBuffer && (
+                <div className="text-xs text-amber-500 mt-2">
+                  Mindshare data for crashed out KOLs is being preserved
+                </div>
+              )}
             </div>
           )}
         </div>

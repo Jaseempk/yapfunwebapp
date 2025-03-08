@@ -3,8 +3,10 @@ import axios from "axios";
 import { kolManagementService } from "./kolManagement";
 import { marketCycleService } from "./marketCycle";
 import { redisClient } from "../config/redis";
-import { CycleStatus } from "../types/marketCycle";
+import { CycleStatus, KOLData } from "../types/marketCycle";
 import { redisService } from "./redisService";
+import { kolService } from "./kol";
+import { getMarketDeploymentService } from "./market/deployment";
 
 const KAITO_API_URL = process.env.KAITO_API_URL;
 const KAITO_API_KEY = process.env.KAITO_API_KEY;
@@ -226,13 +228,52 @@ class SchedulerService {
         id: kol.id,
         mindshare: kol.mindshare,
         username: kol.username,
+        marketAddress: undefined, // Will be populated later for existing markets
       }));
 
-      // TODO: Deploy market for first KOL and initialize cycle
-      // This would require integration with market deployment service
-      console.log("New cycle initialization would happen here");
-      // await marketDeploymentService.deployMarket(initialKols[0].id);
-      // await marketCycleService.initializeCycle(marketAddress, initialKols);
+      // Check for existing markets for these KOLs
+      for (let i = 0; i < initialKols.length; i++) {
+        try {
+          // Use kolService to get market address
+          const kol = await kolService.getKOL(initialKols[i].id.toString());
+          if (kol && kol.marketAddress) {
+            initialKols[i].marketAddress = kol.marketAddress;
+            console.log(
+              `Found existing market ${kol.marketAddress} for KOL ${initialKols[i].id}`
+            );
+          }
+        } catch (error) {
+          // Market doesn't exist, will be deployed later
+          console.log(`No existing market found for KOL ${initialKols[i].id}`);
+        }
+      }
+
+      // Use the new handleBufferEnd method to start a new cycle
+      await marketCycleService.handleBufferEnd(initialKols);
+
+      // Deploy markets for new KOLs that don't have markets yet
+      const kolsWithoutMarkets = initialKols.filter(
+        (kol: KOLData) => !kol.marketAddress
+      );
+      if (kolsWithoutMarkets.length > 0) {
+        const kolIds = kolsWithoutMarkets.map((kol: KOLData) =>
+          kol.id.toString()
+        );
+        console.log(`Deploying markets for ${kolIds.length} new KOLs`);
+
+        // Get the market deployment service
+        const marketDeploymentService = getMarketDeploymentService();
+
+        // Deploy markets for each KOL
+        for (const kolId of kolIds) {
+          try {
+            await marketDeploymentService.deployMarket(kolId);
+            console.log(`Deployed market for KOL ${kolId}`);
+          } catch (error) {
+            console.error(`Failed to deploy market for KOL ${kolId}:`, error);
+          }
+        }
+      }
     } catch (error) {
       console.error("Failed to start new cycle:", error);
     }
@@ -311,12 +352,13 @@ class SchedulerService {
 
     const cycle = await marketCycleService.getCurrentCycle();
     const status = await marketCycleService.getCycleStatus();
+    const crashedOutKols = await marketCycleService.getCrashedOutKols();
 
     return {
       currentCycle: cycle,
       status: status,
       topKols: await kolManagementService.getCurrentTopKOLs(),
-      crashedOutKols: await kolManagementService.getCrashedOutKOLs(),
+      crashedOutKols: crashedOutKols,
       bufferEndTime: cycle?.bufferEndTime,
       globalExpiry: cycle?.globalExpiry,
       isInBuffer: status === CycleStatus.BUFFER,

@@ -23,15 +23,29 @@ export const REDIS_TTL = {
 };
 
 // Redis client configuration
-const redisConfig = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD,
-  retryStrategy: (times: number) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-};
+let redisConfig: any;
+
+if (process.env.REDIS_URL) {
+  // Use Render's Redis URL format
+  redisConfig = {
+    url: process.env.REDIS_URL,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  };
+} else {
+  // Use traditional configuration for local development
+  redisConfig = {
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT || "6379"),
+    password: process.env.REDIS_PASSWORD,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  };
+}
 
 // Create Redis client instance
 export const redisClient = new Redis(redisConfig);

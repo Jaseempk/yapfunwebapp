@@ -238,6 +238,7 @@ export class SubgraphService {
     const data = await this.query<{
       newMarketInitialisedAndWhitelisteds: SubgraphMarketInitialized[];
     }>(this.factoryEndpoint, query, { kolId });
+
     return data.newMarketInitialisedAndWhitelisteds?.[0]?.marketAddy || null;
   }
 
@@ -277,5 +278,5 @@ export class SubgraphService {
 // Initialize with the subgraph endpoints from environment variables
 export const subgraphService = new SubgraphService(
   process.env.FACTORY_SUBGRAPH_URL ||
-    "https://gateway.thegraph.com/api/9aec29c6f03932a7afa971b84755c12c/subgraphs/id/5PboFdKX1j2enW5mVHc9ySAZ6eQsKjQ4vBXqmAE7y9tj"
+    "https://gateway-arbitrum.network.thegraph.com/api/9aec29c6f03932a7afa971b84755c12c/subgraphs/id/5PboFdKX1j2enW5mVHc9ySAZ6eQsKjQ4vBXqmAE7y9tj"
 );

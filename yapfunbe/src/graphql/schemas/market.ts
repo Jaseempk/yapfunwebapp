@@ -71,11 +71,19 @@ export const marketTypeDefs = `#graphql
     ENDED
   }
 
+  type CrashedOutKOL {
+    id: ID!
+    username: String
+    marketAddress: String!
+    crashedOutAt: String!
+  }
+
   type CycleStatus {
     status: CycleStatusEnum!
     bufferEndTime: String
     globalExpiry: String
     isInBuffer: Boolean!
+    crashedOutKols: [CrashedOutKOL!]
   }
 
   type Query {

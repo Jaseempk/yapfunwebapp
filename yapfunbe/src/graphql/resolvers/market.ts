@@ -110,7 +110,13 @@ export const marketResolvers: {
         const cycleInfo = await schedulerService.getCycleInfo();
         if (!cycleInfo) return null;
 
-        const { status, bufferEndTime, globalExpiry, isInBuffer } = cycleInfo;
+        const {
+          status,
+          bufferEndTime,
+          globalExpiry,
+          isInBuffer,
+          crashedOutKols,
+        } = cycleInfo;
 
         // Map backend status to frontend enum
         let frontendStatus: CycleStatusEnum;
@@ -131,11 +137,23 @@ export const marketResolvers: {
             frontendStatus = CycleStatusEnum.NOT_STARTED;
         }
 
+        // Format crashed out KOLs for the response
+        const formattedCrashedOutKols =
+          crashedOutKols?.map((kol) => ({
+            id: kol.id.toString(),
+            username: kol.username || null,
+            marketAddress: kol.marketAddress,
+            crashedOutAt: kol.crashedOutAt
+              ? kol.crashedOutAt.toString()
+              : Date.now().toString(),
+          })) || [];
+
         return {
           status: frontendStatus,
           bufferEndTime: bufferEndTime ? bufferEndTime.toString() : undefined,
           globalExpiry: globalExpiry ? globalExpiry.toString() : undefined,
           isInBuffer: isInBuffer || false,
+          crashedOutKols: formattedCrashedOutKols,
         };
       } catch (error) {
         console.error("Error fetching cycle status:", error);

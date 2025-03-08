@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: yapfun-backend
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: yapfun-redis
+          property: connectionString
+      - key: RPC_URL
+        value: https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI
+      - key: WEBSOCKET_PATH
+        value: /graphql
+      - key: KAITO_API_URL
+        value: https://hub.kaito.ai/api/v1/gateway/ai
+
+  - type: redis
+    name: yapfun-redis
+    ipAllowList: []
+    plan: free

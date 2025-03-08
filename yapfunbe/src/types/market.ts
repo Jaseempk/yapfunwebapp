@@ -31,11 +31,19 @@ export enum CycleStatusEnum {
   ENDED = "ENDED",
 }
 
+export interface CrashedOutKOL {
+  id: string;
+  username?: string | null;
+  marketAddress: string;
+  crashedOutAt: string;
+}
+
 export interface CycleStatus {
   status: CycleStatusEnum;
   bufferEndTime?: string;
   globalExpiry?: string;
   isInBuffer: boolean;
+  crashedOutKols?: CrashedOutKOL[];
 }
 
 export interface PricePoint {

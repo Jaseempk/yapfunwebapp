@@ -1,111 +1,99 @@
-# YapFun - Crypto KOL Mindshare Derivatives Market
+# YapFun Web Deployment Guide
 
-YapFun is a decentralized derivatives market focused on mindshares of Key Opinion Leaders (KOLs) in Twitter. The platform allows users to take long or short positions on the future influence and performance of crypto KOLs, creating a unique market-driven approach to valuing online influence.
+This repository contains the YapFun web application, which consists of a Next.js frontend and a Node.js/Express backend with GraphQL. This guide will help you deploy the application on Render.
 
-## Features
+## Project Structure
 
-- **KOL Markets**: Create and participate in prediction markets for social media influencers
-- **Long/Short Positions**: Take positions based on your predictions of a KOL's future performance
-- **Real-time Data**: Live updates of market prices and positions
-- **In-house Wallet**: Secure escrow system for managing funds within the platform
-- **Analytics Dashboard**: Track market trends and your portfolio performance
-- **Responsive Design**: Seamless experience across desktop and mobile devices
-- **Web3 Integration**: Connect with popular wallets like MetaMask, WalletConnect, and more
+- `yapfunfe/`: Next.js frontend application
+- `yapfunbe/`: Node.js/Express backend with GraphQL
+- `ob_v2/`, `obfactory_v2/`, `oracle_v2/`, `yap_escrow_v2/`: Subgraph projects
 
-## Architecture
-
-YapFun is built with a modern, scalable architecture:
-
-### Frontend (`yapfunfe/`)
-
-- **Next.js**: React framework with server-side rendering
-- **TailwindCSS**: Utility-first CSS framework for responsive design
-- **shadcn/ui**: High-quality UI components
-- **Framer Motion**: Smooth animations and transitions
-- **Recharts**: Responsive charting library
-- **wagmi & viem**: Web3 integration libraries
-
-### Backend (`yapfunbe/`)
-
-- **Node.js**: JavaScript runtime
-- **GraphQL API**: Efficient data querying with Apollo Server
-- **WebSocket Subscriptions**: Real-time updates
-- **Redis**: Caching layer for performance
-- **TypeScript**: Type-safe code
-
-### Smart Contracts
-
-- **Escrow System** (`yap_escrow/`): Manages user funds securely
-- **Order Book Factory** (`yap_orderbook_factory/`): Creates and manages market order books
-- **Oracle System** (`yap_oracle/`): Provides reliable data feeds for market resolution
-
-## Getting Started
+## Deployment on Render
 
 ### Prerequisites
 
-- Node.js (v18+)
-- Yarn or npm
-- Docker (for local development)
-- MetaMask or another Web3 wallet
+1. A [Render](https://render.com) account
+2. Your code pushed to a GitHub repository
+3. Access to the necessary API keys and environment variables
 
-### Frontend Setup
+### Deployment Steps
 
-```bash
-cd yapfunfe
-npm install
-npm run dev
-```
+#### 1. Backend Deployment
 
-### Backend Setup
+1. Log in to your Render account and navigate to the dashboard
+2. Click on "New" and select "Blueprint" to deploy using the render.yaml configuration
+3. Connect your GitHub repository
+4. Select the repository and click "Apply"
+5. Render will automatically detect the `render.yaml` file in the `yapfunbe` directory
+6. Review the services to be created:
+   - `yapfun-backend`: The Node.js backend service
+   - `yapfun-redis`: The Redis service for caching and data storage
+7. Click "Apply" to start the deployment
 
-```bash
-cd yapfunbe
-npm install
-npm run dev
-```
+#### 2. Frontend Deployment
 
-### Smart Contract Development
+1. After the backend is deployed, deploy the frontend using the same process
+2. Click on "New" and select "Blueprint"
+3. Select the same repository
+4. Navigate to the `yapfunfe` directory
+5. Render will detect the `render.yaml` file
+6. Review the service to be created: `yapfun-frontend`
+7. Click "Apply" to start the deployment
 
-```bash
-cd yap_escrow  # or other contract directory
-yarn install
-yarn compile
-yarn test
-```
+#### 3. Environment Variables
 
-## Market Mechanics
+The `render.yaml` files include the necessary environment variables, but you may need to update some values:
 
-YapFun's prediction markets operate on the following principles:
+**Backend Environment Variables:**
 
-1. **Market Creation**: Markets are created for KOLs based on their kaito CT ranking
-2. **Position Taking**: Users can take long positions (betting on increased influence) or short positions (betting on decreased influence)
-3. **Price Discovery**: Market prices are determined by the kaito KOL mindshare
-4. **Settlement**: Markets are settled based on oracle data from kaito
-5. **Profit/Loss**: Users profit when their predictions are correct
+- `NODE_ENV`: Set to "production"
+- `PORT`: Set to 4000
+- `REDIS_URL`: Automatically set by Render
+- `RPC_URL`: Blockchain provider URL
+- `DEPLOYER_PRIVATE_KEY`: Private key for blockchain interactions
+- `ORDERBOOK_SUBGRAPH_URL`, `ORACLE_SUBGRAPH_URL`, `FACTORY_SUBGRAPH_URL`: Subgraph URLs
+- `SUPABASE_URL`, `SUPABASE_KEY`: Supabase configuration
+- `KAITO_API_URL`: Kaito API URL
 
-## Security
+**Frontend Environment Variables:**
 
-- **Un-Audited Contracts**: Smart contracts are un-audited
-- **Secure Escrow**: User funds are held in a secure escrow system
-- **Transparent Operations**: All market operations are visible on-chain
-- **Risk Management**: Position limits and circuit breakers prevent market manipulation
+- `NEXT_PUBLIC_GRAPHQL_URL`: URL of the backend GraphQL endpoint
+- `NEXT_PUBLIC_WS_URL`: WebSocket URL for subscriptions
+- `NEXT_PUBLIC_SUBGRAPH_URL`: Subgraph URL
 
-## Roadmap
+### Post-Deployment Configuration
 
-- **Q1 2024**: Launch of beta platform with limited KOL markets
-- **Q2 2024**: Mobile app release
+1. **Custom Domains**: If you want to use custom domains, configure them in the Render dashboard for each service.
+2. **SSL**: Render automatically provides SSL certificates for all services.
+3. **Continuous Deployment**: Render automatically deploys when you push changes to your repository.
 
-## Contributing
+## Local Development
 
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information.
+To run the application locally:
 
-## 📄 License
+1. Backend:
 
-YapFun is licensed under the [MIT License](LICENSE).
+   ```bash
+   cd yapfunbe
+   npm install
+   npm run dev
+   ```
 
-## 📞 Contact
+2. Frontend:
+   ```bash
+   cd yapfunfe
+   npm install
+   npm run dev
+   ```
 
-- Website: [yapfun.com](https://yapfun.com)
-- Twitter: [@YapFunOfficial](https://twitter.com/YapFunOfficial)
-- Discord: [YapFun Community](https://discord.gg/yapfun)
-- Email: team@yapfun.com
+## Troubleshooting
+
+- **Redis Connection Issues**: Ensure the Redis URL is correctly configured in the environment variables.
+- **CORS Errors**: The backend is configured to allow requests from Render domains. If you're using custom domains, update the CORS configuration.
+- **WebSocket Connection Issues**: Ensure the WebSocket URL is correctly configured in the frontend.
+
+## Additional Resources
+
+- [Render Documentation](https://render.com/docs)
+- [Next.js Deployment Documentation](https://nextjs.org/docs/deployment)
+- [Express.js Deployment Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)

@@ -146,7 +146,12 @@ async function startServer() {
 
   // CORS configuration
   const corsOptions = {
-    origin: ["http://localhost:3000", "https://studio.apollographql.com"],
+    origin: [
+      "http://localhost:3000",
+      "https://studio.apollographql.com",
+      "https://yapfun-frontend.onrender.com",
+      /\.onrender\.com$/, // Allow all Render domains
+    ],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
