@@ -4,3 +4,16 @@ services:
     env: node
     buildCommand: npm install && npm run build
     startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_GRAPHQL_URL
+        value: https://yapfunbe.onrender.com/graphql
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://yapfunbe.onrender.com/graphql
+      - key: NEXT_PUBLIC_SUBGRAPH_URL
+        value: https://gateway-arbitrum.network.thegraph.com/api/48f44d37d7c8acd9909a40f664613464/subgraphs/id/5PboFdKX1j2enW5mVHc9ySAZ6eQsKjQ4vBXqmAE7y9tj
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store
