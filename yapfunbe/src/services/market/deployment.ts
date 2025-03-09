@@ -193,7 +193,10 @@ export class MarketDeploymentService {
     }
   }
 
-  async deployMarket(kolId: string): Promise<string> {
+  async deployMarket(
+    kolId: string,
+    isGenesisDeployment: boolean = false
+  ): Promise<string> {
     try {
       // Check if market already exists
       const exists = await this.checkMarketExists(kolId);
@@ -201,14 +204,34 @@ export class MarketDeploymentService {
         throw new Error(`Market already exists for KOL ${kolId}`);
       }
 
-      // Get the current cycle's global expiry timestamp
-      const currentCycle = await marketCycleService.getCurrentCycle();
-      if (!currentCycle) {
-        throw new Error("No active market cycle found");
+      // Get expiry timestamp
+      let expiresAt: number;
+
+      // For genesis deployment, use a default expiry (72 hours from now)
+      if (isGenesisDeployment) {
+        // Convert to seconds since Unix epoch (contract expects seconds, not milliseconds)
+        expiresAt = Math.floor((Date.now() + 72 * 60 * 60 * 1000) / 1000);
+        console.log(
+          `[Genesis Deployment] Using default expiry: ${new Date(expiresAt * 1000).toISOString()}`
+        );
+      } else {
+        // Regular deployment - check for active cycle
+        const currentCycle = await marketCycleService.getCurrentCycle();
+        if (!currentCycle) {
+          throw new Error("No active market cycle found");
+        }
+        // Convert milliseconds to seconds for the contract
+        // Use the absolute timestamp from globalExpiry
+        expiresAt = Math.floor(currentCycle.globalExpiry / 1000);
+        console.log(
+          `[Regular Deployment] Using cycle expiry: ${new Date(expiresAt * 1000).toISOString()}`
+        );
       }
 
-      // Calculate expiry timestamp (remaining time until global expiry)
-      const expiresAt = currentCycle.globalExpiry;
+      // Add debug logging for expiry
+      console.log(`[Debug] Expiry timestamp (seconds): ${expiresAt}`);
+      console.log(`[Debug] Current time (seconds): ${Math.floor(Date.now() / 1000)}`);
+      console.log(`[Debug] Time until expiry (hours): ${((expiresAt - Math.floor(Date.now() / 1000)) / 3600).toFixed(2)}`);
 
       // Convert kolId to BigNumber and deploy new market with Oracle address
       const kolIdBN = ethers.BigNumber.from(kolId);
@@ -216,28 +239,35 @@ export class MarketDeploymentService {
         `[Market Service] Deploying market for KOL ID (BigNumber): ${kolIdBN.toString()}`
       );
       console.log(
-        `[Market Service] Using expiry timestamp: ${new Date(
-          expiresAt
-        ).toISOString()}`
+        `[Market Service] Using expiry timestamp (in seconds): ${expiresAt}`
       );
 
       // Get optimized gas prices
       const { maxFeePerGas, maxPriorityFeePerGas } =
         await this.getOptimizedGasPrice();
 
-      // Prepare transaction with optimized gas settings
+      // Add gas limit estimation
+      const gasLimit = await this.factoryContract.estimateGas.initialiseMarket(
+        Number(kolId),
+        yapOracleCA,
+        expiresAt,
+        {
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+        }
+      );
+
+      // Prepare transaction with optimized gas settings and estimated gas limit
       const tx = await this.withRetry<ContractTransaction>(
         async () =>
           await this.factoryContract.initialiseMarket(
-            kolIdBN,
+            kolIdBN, // Pass BigNumber directly instead of converting to Number
             yapOracleCA,
-            expiresAt, // Pass the expiry timestamp as the third parameter
+            expiresAt,
             {
-              // Pass the BigNumber values directly, not the objects
-              maxFeePerGas: maxFeePerGas,
-              maxPriorityFeePerGas: maxPriorityFeePerGas,
-              // Fallback to legacy gas price if EIP-1559 is not supported
-              gasPrice: ethers.utils.parseUnits("1", "gwei"),
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              gasLimit: gasLimit.mul(120).div(100), // Add 20% buffer to estimated gas
             }
           )
       );
@@ -300,7 +330,10 @@ export class MarketDeploymentService {
     }
   }
 
-  async deployMissingMarkets(kolIds: string[]): Promise<string[]> {
+  async deployMissingMarkets(
+    kolIds: string[],
+    isGenesisDeployment: boolean = false
+  ): Promise<string[]> {
     const deployedMarkets: string[] = [];
     const failedDeployments: string[] = [];
 
@@ -308,7 +341,10 @@ export class MarketDeploymentService {
       try {
         const exists = await this.checkMarketExists(kolId);
         if (!exists) {
-          const marketAddress = await this.deployMarket(kolId);
+          const marketAddress = await this.deployMarket(
+            kolId,
+            isGenesisDeployment
+          );
           deployedMarkets.push(marketAddress);
         }
       } catch (error) {
@@ -341,13 +377,16 @@ export class MarketDeploymentService {
     );
   }
 
-  async checkAndDeployMarkets(kolIds?: string[]): Promise<void> {
+  async checkAndDeployMarkets(
+    kolIds?: string[],
+    isGenesisDeployment: boolean = false
+  ): Promise<void> {
     try {
       if (!kolIds || kolIds.length === 0) {
         console.log("No KOL IDs provided for market deployment check");
         return;
       }
-      await this.deployMissingMarkets(kolIds);
+      await this.deployMissingMarkets(kolIds, isGenesisDeployment);
     } catch (error) {
       console.error("Error in checkAndDeployMarkets:", error);
       throw errorHandler.handle(error);

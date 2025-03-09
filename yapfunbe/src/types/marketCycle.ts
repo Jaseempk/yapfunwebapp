@@ -1,5 +1,3 @@
-import { Market } from "./market";
-
 export interface KOLData {
   id: number;
   mindshare: number;

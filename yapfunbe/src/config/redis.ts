@@ -16,10 +16,10 @@ export const REDIS_KEYS = {
 
 // Redis TTL values (in seconds)
 export const REDIS_TTL = {
-  CYCLE_DATA: 5 * 24 * 60 * 60, // 5 days (cycle duration + buffer + extra day)
-  MARKET_POSITIONS: 5 * 24 * 60 * 60,
-  MARKET_DATA: 5 * 24 * 60 * 60,
-  MINDSHARE_DATA: 5 * 24 * 60 * 60,
+  CYCLE_DATA: 3 * 24 * 60 * 60, // 5 days (cycle duration + buffer + extra day)
+  MARKET_POSITIONS: 3 * 24 * 60 * 60,
+  MARKET_DATA: 3 * 24 * 60 * 60,
+  MINDSHARE_DATA: 3 * 24 * 60 * 60,
 };
 
 // Redis client configuration

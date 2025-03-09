@@ -32,6 +32,8 @@ import {
   getMarketDeploymentService,
 } from "./services/market/deployment";
 import { yapOracleAbi, yapOracleCA } from "./abi/yapOracle";
+import { marketCycleService } from "./services/marketCycle";
+import { schedulerService } from "./services/scheduler";
 
 // Load environment variables
 dotenv.config();
@@ -243,7 +245,63 @@ async function startServer() {
     // Get initial KOL data and deploy markets if needed
     const kols = await kolService.getKOLs();
     const kolIds = kols.map((kol: KOL) => kol.user_id);
-    await marketDeploymentService.checkAndDeployMarkets(kolIds);
+    
+    // Check if a cycle exists to determine if this is a genesis deployment
+    let currentCycle = await marketCycleService.getCurrentCycle();
+    if (!currentCycle) {
+      console.log("No active market cycle found. Deploying genesis markets...");
+      await marketDeploymentService.checkAndDeployMarkets(kolIds, true); // Pass isGenesisDeployment=true
+    } else {
+      await marketDeploymentService.checkAndDeployMarkets(kolIds); // Regular deployment
+    }
+
+    // Recheck cycle status after market deployment
+    currentCycle = await marketCycleService.getCurrentCycle();
+    if (!currentCycle) {
+      console.log(
+        "No active market cycle found. Initializing genesis cycle..."
+      );
+
+      // Get updated KOL data after market deployment
+      const updatedKols = await kolService.getKOLs();
+      console.log(
+        `Fetched ${updatedKols.length} KOLs for cycle initialization`
+      );
+
+      // Transform to the format expected by initializeCycle
+      const initialKols = updatedKols.map((kol) => ({
+        id: parseInt(kol.user_id),
+        mindshare: kol.mindshare || 0,
+        username: kol.username,
+        marketAddress: kol.marketAddress || undefined,
+      }));
+
+      // Check if we have KOLs with markets
+      const kolsWithMarkets = initialKols.filter((kol) => kol.marketAddress);
+
+      if (kolsWithMarkets.length > 0) {
+        console.log(
+          `Found ${kolsWithMarkets.length} KOLs with deployed markets`
+        );
+
+        // Initialize the cycle
+        await marketCycleService.initializeCycle(initialKols);
+        console.log("🔄 Genesis market cycle initialized successfully");
+      } else {
+        console.warn(
+          "Cannot initialize cycle: No KOL with a deployed market found"
+        );
+      }
+    } else {
+      console.log(`Using existing market cycle with ID: ${currentCycle.id}`);
+      console.log(
+        `Cycle ends at: ${new Date(currentCycle.endTime).toISOString()}`
+      );
+    }
+
+    // // Start the scheduler service
+    // await schedulerService.start();
+    // console.log("⏱️ Market cycle scheduler started");
 
     // Setup event listener for market deployments
     marketDeploymentService.setupEventListeners(async (event) => {

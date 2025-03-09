@@ -117,9 +117,9 @@ export default function DepositModal({
   const handleDeposit = async () => {
     setIsLoading(true);
     try {
-      if (!account.address) {
-        throw new Error("Please connect your wallet");
-      }
+      // if (!account.address) {
+      //   throw new Error("Please connect your wallet");
+      // }
 
       // First handle USDC approval
       const approvalSuccess = await handleApproveUsdc();
@@ -128,7 +128,7 @@ export default function DepositModal({
       }
 
       // Wait for 2 seconds after approval to ensure transaction is confirmed
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Then handle the deposit
       const { request } = await simulateContract(config, {
@@ -152,7 +152,7 @@ export default function DepositModal({
         success: true,
         message: "Deposit successful!",
       });
-      
+
       // Refresh balances after successful deposit
       await refreshBalances();
     } catch (error: any) {

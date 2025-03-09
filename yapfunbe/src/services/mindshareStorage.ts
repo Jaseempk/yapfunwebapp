@@ -10,22 +10,32 @@ interface CrashedKOLMindshare {
 /**
  * Service for storing and retrieving mindshare data for crashed out KOLs
  * Uses Supabase as a persistent storage solution
+ * Falls back to in-memory storage if Supabase credentials are not available
  */
 class MindshareStorageService {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient | null = null;
   private readonly tableName = "OrderDirectory";
+  private useInMemoryFallback = false;
+  private inMemoryStorage: Map<string, CrashedKOLMindshare> = new Map();
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error(
-        "Supabase URL and key must be provided in environment variables"
+      console.warn(
+        "Supabase URL and key not provided. Using in-memory storage for mindshare data."
       );
+      this.useInMemoryFallback = true;
+    } else {
+      try {
+        this.supabase = createClient(supabaseUrl, supabaseKey);
+        console.log("Supabase client initialized for mindshare storage");
+      } catch (error) {
+        console.error("Failed to initialize Supabase client:", error);
+        this.useInMemoryFallback = true;
+      }
     }
-
-    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   /**
@@ -39,19 +49,32 @@ class MindshareStorageService {
     mindshares: number[],
     cycleId: string
   ): Promise<void> {
+    const entry: CrashedKOLMindshare = {
+      market_address: marketAddress,
+      mindshares: mindshares,
+      last_active_cycle: cycleId,
+    };
+
+    if (this.useInMemoryFallback) {
+      // Use in-memory storage
+      this.inMemoryStorage.set(marketAddress, entry);
+      console.log(
+        `[In-Memory] Stored mindshare data for crashed out KOL market ${marketAddress}`
+      );
+      return;
+    }
+
     try {
+      if (!this.supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+
       // Check if entry already exists
       const { data: existingData } = await this.supabase
         .from(this.tableName)
         .select("*")
         .eq("marketAddy", marketAddress)
         .single();
-
-      const entry: CrashedKOLMindshare = {
-        market_address: marketAddress,
-        mindshares: mindshares,
-        last_active_cycle: cycleId,
-      };
 
       if (existingData) {
         // Update existing entry
@@ -77,10 +100,11 @@ class MindshareStorageService {
       }
     } catch (error) {
       console.error("Error storing crashed KOL mindshare data:", error);
-      throw new Error(
-        `Failed to store mindshare data: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+
+      // Fallback to in-memory storage on error
+      this.inMemoryStorage.set(marketAddress, entry);
+      console.log(
+        `[Fallback] Stored mindshare data in memory for crashed out KOL market ${marketAddress}`
       );
     }
   }
@@ -91,7 +115,17 @@ class MindshareStorageService {
    * @returns Array of mindshare values or null if not found
    */
   async getStoredMindshares(marketAddress: string): Promise<number[] | null> {
+    if (this.useInMemoryFallback) {
+      // Use in-memory storage
+      const data = this.inMemoryStorage.get(marketAddress);
+      return data?.mindshares || null;
+    }
+
     try {
+      if (!this.supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+
       const { data, error } = await this.supabase
         .from(this.tableName)
         .select("mindshares")
@@ -109,7 +143,10 @@ class MindshareStorageService {
       return data?.mindshares || null;
     } catch (error) {
       console.error("Error retrieving crashed KOL mindshare data:", error);
-      return null;
+
+      // Try in-memory fallback
+      const data = this.inMemoryStorage.get(marketAddress);
+      return data?.mindshares || null;
     }
   }
 
@@ -118,7 +155,20 @@ class MindshareStorageService {
    * @param marketAddress The market address of the KOL
    */
   async clearStoredMindshares(marketAddress: string): Promise<void> {
+    if (this.useInMemoryFallback) {
+      // Use in-memory storage
+      this.inMemoryStorage.delete(marketAddress);
+      console.log(
+        `[In-Memory] Cleared mindshare data for KOL market ${marketAddress}`
+      );
+      return;
+    }
+
     try {
+      if (!this.supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+
       const { error } = await this.supabase
         .from(this.tableName)
         .delete()
@@ -126,9 +176,15 @@ class MindshareStorageService {
 
       if (error) throw error;
       console.log(`Cleared mindshare data for KOL market ${marketAddress}`);
+
+      // Also clear from in-memory storage if it exists there
+      this.inMemoryStorage.delete(marketAddress);
     } catch (error) {
       console.error("Error clearing crashed KOL mindshare data:", error);
       // Don't throw here, just log the error
+
+      // Still try to clear from in-memory storage
+      this.inMemoryStorage.delete(marketAddress);
     }
   }
 
@@ -137,7 +193,16 @@ class MindshareStorageService {
    * @returns Array of CrashedKOLMindshare objects
    */
   async getAllCrashedKOLMindshares(): Promise<CrashedKOLMindshare[]> {
+    if (this.useInMemoryFallback) {
+      // Use in-memory storage
+      return Array.from(this.inMemoryStorage.values());
+    }
+
     try {
+      if (!this.supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+
       const { data, error } = await this.supabase
         .from(this.tableName)
         .select("*");
@@ -146,7 +211,9 @@ class MindshareStorageService {
       return data || [];
     } catch (error) {
       console.error("Error retrieving all crashed KOL mindshare data:", error);
-      return [];
+
+      // Fallback to in-memory storage
+      return Array.from(this.inMemoryStorage.values());
     }
   }
 }

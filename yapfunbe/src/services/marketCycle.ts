@@ -17,16 +17,13 @@ const BUFFER_DURATION = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
 
 class MarketCycleService {
   // Initialize a new market cycle
-  async initializeCycle(
-    firstMarketAddress: string,
-    initialKols: KOLData[]
-  ): Promise<void> {
+  async initializeCycle(initialKols: KOLData[]): Promise<void> {
     try {
       const now = Date.now();
       const cycleId = now.toString();
       const endTime = now + CYCLE_DURATION;
       const bufferEndTime = endTime + BUFFER_DURATION;
-      const globalExpiry = endTime; // Global expiry is the same as cycle end time
+      const globalExpiry = endTime;
 
       const newCycle: MarketCycle = {
         id: cycleId,
@@ -46,23 +43,32 @@ class MarketCycleService {
       await redisService.setGlobalExpiry(cycleId, globalExpiry);
       await redisService.setBufferEndTime(cycleId, bufferEndTime);
 
-      // Initialize first market position tracking
-      const position: MarketPosition = {
-        marketAddress: firstMarketAddress,
-        cycleId: cycleId,
-        activeTokenIds: [],
-        isActive: true,
-      };
-      await redisService.setMarketPosition(firstMarketAddress, position);
+      // Initialize position tracking and market data for ALL KOLs with markets
+      for (const kol of initialKols) {
+        if (kol.marketAddress) {
+          // Initialize market position tracking
+          const position: MarketPosition = {
+            marketAddress: kol.marketAddress,
+            cycleId: cycleId,
+            activeTokenIds: [],
+            isActive: true,
+          };
+          await redisService.setMarketPosition(kol.marketAddress, position);
 
-      // Initialize market data with expiry
-      const marketData: MarketData = {
-        marketAddress: firstMarketAddress,
-        kolId: initialKols[0]?.id || 0,
-        expiresAt: globalExpiry,
-        mindshares: [],
-      };
-      await redisService.setMarketData(firstMarketAddress, marketData);
+          // Initialize market data with expiry
+          const marketData: MarketData = {
+            marketAddress: kol.marketAddress,
+            kolId: kol.id,
+            expiresAt: globalExpiry,
+            mindshares: [],
+          };
+          await redisService.setMarketData(kol.marketAddress, marketData);
+
+          console.log(
+            `Initialized market data for KOL ${kol.id} at ${kol.marketAddress}`
+          );
+        }
+      }
 
       console.log(
         `Initialized new market cycle ${cycleId} with end time ${new Date(

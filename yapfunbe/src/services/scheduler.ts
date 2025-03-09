@@ -56,6 +56,16 @@ class SchedulerService {
 
     // Initial cycle check
     await this.checkCycleStatus();
+    
+    // Initial Kaito update
+    try {
+      console.log("Running initial Kaito data update...");
+      await this.processKaitoUpdate();
+      console.log("Initial Kaito data update completed");
+    } catch (error) {
+      console.error("Failed to run initial Kaito update:", error);
+      // Continue even if initial update fails
+    }
   }
 
   // Stop the scheduler
@@ -107,11 +117,14 @@ class SchedulerService {
       const cycle = await marketCycleService.getCurrentCycle();
 
       if (!cycle) {
-        console.log("No active cycle found");
+        console.log("No active cycle found during cycle check");
+        // This should not happen if initialization is done correctly in index.ts
+        // But if it does, we'll log it and return
         return;
       }
 
-      console.log(`Current cycle status: ${status}`);
+      console.log(`Current cycle status: ${status}, ID: ${cycle.id}`);
+      console.log(`Cycle ends at: ${new Date(cycle.endTime).toISOString()}`);
 
       switch (status) {
         case CycleStatus.ACTIVE:
