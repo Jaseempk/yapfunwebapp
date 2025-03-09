@@ -12,7 +12,7 @@ import { config } from "../providers/Web3Providers";
 import { baseSepolia } from "wagmi/chains";
 import { obAbi } from "@/contractAbi/orderBook";
 import { obFAbi, obfCA } from "@/contractAbi/obFactory";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/app/components/ui/use-toast";
 
 export interface Order {
   id: number;
