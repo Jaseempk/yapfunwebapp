@@ -8,9 +8,9 @@ dataSources:
     name: YapOrderBookFactory
     network: base-sepolia
     source:
-      address: "0xA76EAb9659390b0B7Bf1CE7Eb6d7cC6C90487edB"
+      address: "0x13286F2bD13A2a6c3371233B5605bE7DBCA51475"
       abi: YapOrderBookFactory
-      startBlock: 22833523
+      startBlock: 22882515
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

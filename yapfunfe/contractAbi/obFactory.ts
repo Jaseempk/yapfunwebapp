@@ -1,4 +1,4 @@
-export const obfCA = "0xA76EAb9659390b0B7Bf1CE7Eb6d7cC6C90487edB";
+export const obfCA = "0x13286F2bD13A2a6c3371233B5605bE7DBCA51475";
 export const obFAbi = [
   {
     inputs: [{ internalType: "address", name: "_yapEscrow", type: "address" }],
@@ -107,6 +107,13 @@ export const obFAbi = [
     inputs: [],
     name: "DEFAULT_ADMIN_ROLE",
     outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "MARKET_DURATION",
+    outputs: [{ internalType: "uint32", name: "", type: "uint32" }],
     stateMutability: "view",
     type: "function",
   },

@@ -21,7 +21,7 @@ const DEFAULT_GAS_SETTINGS = {
 // List of RPC URLs in order of preference
 const RPC_URLS = [
   process.env.RPC_URL,
-  "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI",
+  "https://base-sepolia.g.alchemy.com/v2/Tj1n0Zj0HqmL3As-MYG-uLrMyQF3SXjI",
   "https://sepolia.base.org",
 ].filter(Boolean) as string[];
 

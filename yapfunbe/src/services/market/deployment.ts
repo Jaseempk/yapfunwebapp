@@ -21,7 +21,7 @@ export class MarketDeploymentService {
     if (!MarketDeploymentService.instance) {
       const rpcUrl =
         process.env.RPC_URL ||
-        "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI";
+        "https://base-sepolia.g.alchemy.com/v2/Tj1n0Zj0HqmL3As-MYG-uLrMyQF3SXjI";
       const provider = new ethers.providers.JsonRpcProvider({
         url: rpcUrl,
         timeout: 30000, // 30 seconds
@@ -210,9 +210,11 @@ export class MarketDeploymentService {
       // For genesis deployment, use a default expiry (72 hours from now)
       if (isGenesisDeployment) {
         // Convert to seconds since Unix epoch (contract expects seconds, not milliseconds)
-        expiresAt = Math.floor((Date.now() + 72 * 60 * 60 * 1000) / 1000);
+        expiresAt = 72 * 60 * 60;
         console.log(
-          `[Genesis Deployment] Using default expiry: ${new Date(expiresAt * 1000).toISOString()}`
+          `[Genesis Deployment] Using default expiry: ${new Date(
+            expiresAt * 1000
+          ).toISOString()}`
         );
       } else {
         // Regular deployment - check for active cycle
@@ -222,16 +224,26 @@ export class MarketDeploymentService {
         }
         // Convert milliseconds to seconds for the contract
         // Use the absolute timestamp from globalExpiry
-        expiresAt = Math.floor(currentCycle.globalExpiry / 1000);
+        expiresAt =
+          Math.floor(currentCycle.globalExpiry / 1000) - Date.now() / 1000;
         console.log(
-          `[Regular Deployment] Using cycle expiry: ${new Date(expiresAt * 1000).toISOString()}`
+          `[Regular Deployment] Using cycle expiry: ${new Date(
+            expiresAt * 1000
+          ).toISOString()}`
         );
       }
 
       // Add debug logging for expiry
       console.log(`[Debug] Expiry timestamp (seconds): ${expiresAt}`);
-      console.log(`[Debug] Current time (seconds): ${Math.floor(Date.now() / 1000)}`);
-      console.log(`[Debug] Time until expiry (hours): ${((expiresAt - Math.floor(Date.now() / 1000)) / 3600).toFixed(2)}`);
+      console.log(
+        `[Debug] Current time (seconds): ${Math.floor(Date.now() / 1000)}`
+      );
+      console.log(
+        `[Debug] Time until expiry (hours): ${(
+          (expiresAt - Math.floor(Date.now() / 1000)) /
+          3600
+        ).toFixed(2)}`
+      );
 
       // Convert kolId to BigNumber and deploy new market with Oracle address
       const kolIdBN = ethers.BigNumber.from(kolId);
@@ -248,7 +260,7 @@ export class MarketDeploymentService {
 
       // Add gas limit estimation
       const gasLimit = await this.factoryContract.estimateGas.initialiseMarket(
-        Number(kolId),
+        kolIdBN,
         yapOracleCA,
         expiresAt,
         {
