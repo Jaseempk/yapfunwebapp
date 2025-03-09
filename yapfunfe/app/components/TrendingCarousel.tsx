@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
+import { Card } from "../components/ui/card";
 import {
   ArrowLeft,
   ArrowRight,
   TrendingUpIcon as Trending,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 import {
   motion,
   AnimatePresence,

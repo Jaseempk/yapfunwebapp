@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Button } from "../components/ui/button";
 import { useAccount } from "wagmi";
 import PositionsContent from "./PositionsContent";
 import { useBalances } from "../hooks/useBalances";
@@ -16,7 +16,7 @@ import { Sparkles, Wallet, TrendingUp, BarChart2, Loader2 } from "lucide-react";
 
 export default function ProfileContent() {
   const { address } = useAccount();
-  const {  loading: ordersLoading, openOrdersCount } = useUserOrders();
+  const { loading: ordersLoading, openOrdersCount } = useUserOrders();
   const { inHouseBalance, userBalance, refreshBalances } = useBalances();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);

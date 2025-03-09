@@ -1,19 +1,29 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import TimeFilter from "./TimeFilter"
-import { useState } from "react"
+import { Card } from "../components/ui/card";
+import {
+  BarChart,
+  LineChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import TimeFilter from "./TimeFilter";
+import { useState } from "react";
 
 const analyticsData = Array.from({ length: 30 }, (_, i) => ({
   date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
   mindshare: Math.random() * 100,
   engagement: Math.random() * 1000,
   growth: Math.random() * 50 - 25,
-}))
+}));
 
 export default function AnalyticsContent() {
-  const [timeRange, setTimeRange] = useState("30d")
+  const [timeRange, setTimeRange] = useState("30d");
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -31,7 +41,11 @@ export default function AnalyticsContent() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => new Date(value).toLocaleDateString("en-US", { day: "numeric" })}
+                  tickFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-US", {
+                      day: "numeric",
+                    })
+                  }
                 />
                 <YAxis />
                 <Tooltip />
@@ -49,11 +63,20 @@ export default function AnalyticsContent() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => new Date(value).toLocaleDateString("en-US", { day: "numeric" })}
+                  tickFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-US", {
+                      day: "numeric",
+                    })
+                  }
                 />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="engagement" stroke="#8b5cf6" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="engagement"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -67,17 +90,25 @@ export default function AnalyticsContent() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => new Date(value).toLocaleDateString("en-US", { day: "numeric" })}
+                  tickFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-US", {
+                      day: "numeric",
+                    })
+                  }
                 />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="growth" stroke="#ec4899" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="growth"
+                  stroke="#ec4899"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
       </div>
     </main>
-  )
+  );
 }
-

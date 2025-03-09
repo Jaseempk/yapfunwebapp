@@ -3,22 +3,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUserOrders, UserOrder } from "../hooks/useUserOrders";
 import { useKOLData } from "../hooks/useKOLData";
-import { Card } from "@/components/ui/card";
+import { Card } from "../components/ui/card";
 import { motion } from "framer-motion";
 import { Loader2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from "../components/ui/dialog";
 import { writeContract, simulateContract } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
 import { obAbi } from "@/contractAbi/orderBook";
-import { toast } from "@/components/ui/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "../components/ui/use-toast";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 
 interface OrderWithKOL extends UserOrder {
   kolName: string;
@@ -29,30 +34,35 @@ const PositionsContent = () => {
   const { kols, loading: kolsLoading } = useKOLData({ timeFilter: "7d" });
   const { orders, loading, error, refreshOrders } = useUserOrders();
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancellingOrder, setCancellingOrder] = useState<OrderWithKOL | null>(null);
-  const [cancelStatus, setCancelStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [cancellingOrder, setCancellingOrder] = useState<OrderWithKOL | null>(
+    null
+  );
+  const [cancelStatus, setCancelStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [activeTab, setActiveTab] = useState<"filled" | "unfilled">("filled");
 
   // Memoize filtered orders to prevent unnecessary re-renders
   const activeOrders = useMemo((): OrderWithKOL[] => {
-    return orders
-      .map((order: UserOrder): OrderWithKOL => {
-        const kol = kols.find((k) => k.user_id === order.kolId);
-        return {
-          ...order,
-          kolName: kol?.name || "Unknown KOL",
-          kolHandle: kol?.handle || order.kolId,
-        };
-      });
+    return orders.map((order: UserOrder): OrderWithKOL => {
+      const kol = kols.find((k) => k.user_id === order.kolId);
+      return {
+        ...order,
+        kolName: kol?.name || "Unknown KOL",
+        kolHandle: kol?.handle || order.kolId,
+      };
+    });
   }, [orders, kols]);
 
   // Separate orders by status
   const filledOrders = useMemo(() => {
-    return activeOrders.filter(order => order.status === 1); // FILLED
+    return activeOrders.filter((order) => order.status === 1); // FILLED
   }, [activeOrders]);
 
   const unfilledOrders = useMemo(() => {
-    return activeOrders.filter(order => order.status === 0 || order.status === 2); // ACTIVE or PARTIAL_FILLED
+    return activeOrders.filter(
+      (order) => order.status === 0 || order.status === 2
+    ); // ACTIVE or PARTIAL_FILLED
   }, [activeOrders]);
 
   function formatLargeNumber(num: number) {
@@ -96,7 +106,7 @@ const PositionsContent = () => {
 
       await writeContract(config, request);
       setCancelStatus("success");
-      
+
       // Refresh orders after a short delay
       setTimeout(() => {
         refreshOrders();
@@ -152,24 +162,24 @@ const PositionsContent = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      whileHover={{ 
-        scale: 1.03, 
+      whileHover={{
+        scale: 1.03,
         y: -5,
-        transition: { duration: 0.2 }
+        transition: { duration: 0.2 },
       }}
     >
-      <Card 
+      <Card
         className={`p-4 transition-all duration-300 border border-secondary/20 bg-card/50 backdrop-blur-sm
-          ${canCancelOrder(order) 
-            ? 'hover:border-amber-500/50 hover:shadow-[0_8px_30px_rgba(245,158,11,0.2)]' 
-            : 'hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(147,51,234,0.2)]'}`}
+          ${
+            canCancelOrder(order)
+              ? "hover:border-amber-500/50 hover:shadow-[0_8px_30px_rgba(245,158,11,0.2)]"
+              : "hover:border-primary/50 hover:shadow-[0_8px_30px_rgba(147,51,234,0.2)]"
+          }`}
       >
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-semibold text-lg">{order.kolName}</h3>
-            <p className="text-sm text-muted-foreground">
-              {order.kolHandle}
-            </p>
+            <p className="text-sm text-muted-foreground">{order.kolHandle}</p>
           </div>
           <div className="flex items-center gap-2">
             <span
@@ -182,9 +192,7 @@ const PositionsContent = () => {
               {order.isLong ? "Long" : "Short"}
             </span>
             {canCancelOrder(order) && (
-              <span
-                className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-              >
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 {order.status === 0 ? "Unfilled" : "Partially Filled"}
               </span>
             )}
@@ -218,9 +226,9 @@ const PositionsContent = () => {
 
         {canCancelOrder(order) && (
           <div className="mt-4">
-            <Button 
-              variant="destructive" 
-              size="sm" 
+            <Button
+              variant="destructive"
+              size="sm"
               className="w-full"
               onClick={() => handleCancelOrder(order)}
             >
@@ -234,22 +242,18 @@ const PositionsContent = () => {
 
   return (
     <>
-      <Tabs defaultValue="filled" className="w-full" onValueChange={(value) => setActiveTab(value as "filled" | "unfilled")}>
+      <Tabs
+        defaultValue="filled"
+        className="w-full"
+        onValueChange={(value) => setActiveTab(value as "filled" | "unfilled")}
+      >
         <div className="flex justify-center mb-6">
           <TabsList className="grid grid-cols-2 w-full max-w-md">
-            <TabsTrigger 
-              value="filled" 
-              className="relative"
-            >
+            <TabsTrigger value="filled" className="relative">
               Filled Positions
-
             </TabsTrigger>
-            <TabsTrigger 
-              value="unfilled" 
-              className="relative"
-            >
+            <TabsTrigger value="unfilled" className="relative">
               Unfilled Positions
-
             </TabsTrigger>
           </TabsList>
         </div>
@@ -273,7 +277,9 @@ const PositionsContent = () => {
               transition={{ duration: 0.3 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
             >
-              {filledOrders.map((order, index) => renderOrderCard(order, index))}
+              {filledOrders.map((order, index) =>
+                renderOrderCard(order, index)
+              )}
             </motion.div>
           )}
         </TabsContent>
@@ -297,7 +303,9 @@ const PositionsContent = () => {
               transition={{ duration: 0.3 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
             >
-              {unfilledOrders.map((order, index) => renderOrderCard(order, index))}
+              {unfilledOrders.map((order, index) =>
+                renderOrderCard(order, index)
+              )}
             </motion.div>
           )}
         </TabsContent>
@@ -314,11 +322,13 @@ const PositionsContent = () => {
             </DialogTitle>
             <DialogDescription>
               {cancellingOrder && (
-                <span>Order #{cancellingOrder.id} for {cancellingOrder.kolName}</span>
+                <span>
+                  Order #{cancellingOrder.id} for {cancellingOrder.kolName}
+                </span>
               )}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex flex-col items-center justify-center py-4">
             {cancelStatus === "loading" && (
               <div className="flex flex-col items-center gap-2">
@@ -326,33 +336,48 @@ const PositionsContent = () => {
                 <p>Processing your cancellation request...</p>
               </div>
             )}
-            
+
             {cancelStatus === "success" && (
               <div className="flex flex-col items-center gap-2 text-green-600">
                 <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 </div>
                 <p>Your order has been successfully cancelled!</p>
-                <p className="text-sm text-muted-foreground">Any remaining funds will be refunded to your wallet.</p>
+                <p className="text-sm text-muted-foreground">
+                  Any remaining funds will be refunded to your wallet.
+                </p>
               </div>
             )}
-            
+
             {cancelStatus === "error" && (
               <div className="flex flex-col items-center gap-2 text-red-600">
                 <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                   <X className="h-6 w-6" />
                 </div>
                 <p>Failed to cancel your order.</p>
-                <p className="text-sm text-muted-foreground">Please try again or contact support if the issue persists.</p>
+                <p className="text-sm text-muted-foreground">
+                  Please try again or contact support if the issue persists.
+                </p>
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-end">
-            <Button 
-              variant={cancelStatus === "loading" ? "ghost" : "default"} 
+            <Button
+              variant={cancelStatus === "loading" ? "ghost" : "default"}
               onClick={handleCloseModal}
               disabled={cancelStatus === "loading"}
             >

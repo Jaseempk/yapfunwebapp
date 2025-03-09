@@ -7,7 +7,7 @@ import ProfileContent from "../../components/ProfileContent";
 import { Loader2 } from "lucide-react";
 import { getAccount } from "@wagmi/core";
 import { config } from "@/app/providers/Web3Providers";
-import { Button } from "@/components/ui/button";
+import { Button } from "../../components/ui/button";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -47,9 +47,7 @@ export default function ProfilePage() {
         </p>
         <div className="flex gap-4">
           <Button asChild variant="default">
-            <Link href="/">
-              Go Home
-            </Link>
+            <Link href="/">Go Home</Link>
           </Button>
         </div>
       </div>

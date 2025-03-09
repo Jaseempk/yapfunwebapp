@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { RefreshCcw } from "lucide-react";
 import { parseUnits } from "viem";
 import { useAccount } from "wagmi";

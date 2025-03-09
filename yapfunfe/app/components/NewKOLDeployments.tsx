@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
+import { Card } from "../components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { RocketIcon, ExternalLink, TrendingUp } from "lucide-react";
 import { gql, useSubscription } from "@apollo/client";

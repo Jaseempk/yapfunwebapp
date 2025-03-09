@@ -7,15 +7,15 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { useAccount } from "wagmi";
 import { readContract, writeContract, waitForTransaction } from "@wagmi/core";
 import { config } from "../providers/Web3Providers";
 import { baseSepolia } from "wagmi/chains";
 import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "../components/ui/use-toast";
 
 interface WithdrawModalProps {
   isOpen: boolean;

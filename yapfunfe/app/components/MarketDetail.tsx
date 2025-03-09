@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "../components/ui/dialog";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { readContract } from "@wagmi/core";
@@ -178,7 +178,6 @@ export default function MarketDetail({
 
               {/* Trading Interface */}
               <div className="space-y-3 sm:space-y-4">
-
                 <TradingInterface
                   marketAddress={kol.marketAddress}
                   balance={balance}

@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "../components/ui/card";
+import { Button } from "../components/ui/button";
 import { BookOpen, RefreshCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMarketEvents } from "../hooks/useMarketEvents";
