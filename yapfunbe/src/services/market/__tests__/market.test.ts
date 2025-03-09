@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { redis } from "../../../config/cache";
+import { utils } from "ethers";
 import { marketService } from "../market";
 import { MarketEventHandler } from "../events";
 import { marketConfig } from "../config";
@@ -8,35 +8,17 @@ import { subgraphService } from "../../subgraph";
 import {
   Market,
   Position,
-  Order,
   PositionType,
-  OrderType,
   PositionStatus,
 } from "../../../types/market";
-import { Redis } from "ioredis";
-import { ethers } from "ethers";
-
-// Mock Redis
-const mockRedis = {
-  get: jest.fn(),
-  set: jest.fn(),
-  setex: jest.fn(),
-  del: jest.fn(),
-  hget: jest.fn(),
-  hset: jest.fn(),
-  hdel: jest.fn(),
-  hgetall: jest.fn(),
-  keys: jest.fn(),
-  multi: jest.fn(() => ({
-    exec: jest.fn().mockResolvedValue([["OK"]]),
-  })),
-  pipeline: jest.fn(() => ({
-    exec: jest.fn().mockResolvedValue([["OK"]]),
-  })),
-} as jest.Mocked<Pick<Redis, keyof typeof mockRedis>>;
 
 jest.mock("../../../config/cache", () => ({
-  redis: mockRedis,
+  redis: {
+    get: jest.fn(),
+    set: jest.fn(),
+    setex: jest.fn(),
+    del: jest.fn(),
+  },
   CACHE_PREFIX: {
     MARKET: "market:",
   },
@@ -55,44 +37,52 @@ jest.mock("../../contract", () => ({
 jest.mock("../../subgraph", () => ({
   subgraphService: {
     getMarketPositions: jest.fn(),
+    getMarkets: jest.fn(),
+    getMarket: jest.fn(),
   },
 }));
+
+// Import mocked redis after mocking
+const { redis } = jest.requireMock("../../../config/cache");
 
 describe("Market Service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Setup default mock implementations
+    redis.get.mockResolvedValue(null);
+    redis.set.mockResolvedValue("OK");
+    redis.setex.mockResolvedValue("OK");
+    redis.del.mockResolvedValue(1);
   });
 
   describe("getMarket", () => {
     const mockMarket: Market = {
       id: "1",
       name: "Test Market",
-      totalVolume: Number(ethers.parseUnits("1000", 18)),
+      totalVolume: Number(utils.parseUnits("1000", 18)),
       totalPositions: 10,
-      currentPrice: Number(ethers.parseUnits("100", 18)),
+      currentPrice: Number(utils.parseUnits("100", 18)),
       priceHistory: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     it("should return cached market if available", async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockMarket));
+      redis.get.mockResolvedValue(JSON.stringify(mockMarket));
 
       const result = await marketService.getMarket("1");
       expect(result).toEqual(mockMarket);
-      expect(mockRedis.get).toHaveBeenCalledWith("market:1");
+      expect(redis.get).toHaveBeenCalledWith("market:1");
     });
 
     it("should fetch from contract if not cached", async () => {
-      mockRedis.get.mockResolvedValue(null);
-      (contractService.getMarketData as jest.Mock).mockResolvedValue(
-        mockMarket
-      );
+      redis.get.mockResolvedValue(null);
+      (contractService.getMarketData as jest.Mock).mockResolvedValue(mockMarket);
 
       const result = await marketService.getMarket("1");
       expect(result).toEqual(mockMarket);
       expect(contractService.getMarketData).toHaveBeenCalledWith("1");
-      expect(mockRedis.setex).toHaveBeenCalledWith(
+      expect(redis.setex).toHaveBeenCalledWith(
         "market:1",
         expect.any(Number),
         JSON.stringify(mockMarket)
@@ -105,8 +95,8 @@ describe("Market Service", () => {
       id: "1",
       marketId: "1",
       trader: "0x123",
-      amount: Number(ethers.parseUnits("100", 18)),
-      entryPrice: Number(ethers.parseUnits("50", 18)),
+      amount: Number(utils.parseUnits("100", 18)),
+      entryPrice: Number(utils.parseUnits("50", 18)),
       type: PositionType.LONG,
       status: PositionStatus.OPEN,
       createdAt: new Date().toISOString(),
@@ -116,16 +106,16 @@ describe("Market Service", () => {
 
     it("should return cached positions if available", async () => {
       const mockPositions = [mockPosition];
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockPositions));
+      redis.get.mockResolvedValue(JSON.stringify(mockPositions));
 
       const result = await marketService.getMarketPositions("1");
       expect(result).toEqual(mockPositions);
-      expect(mockRedis.get).toHaveBeenCalledWith("market:1:positions");
+      expect(redis.get).toHaveBeenCalledWith("market:1:positions");
     });
 
     it("should fetch from subgraph if not cached", async () => {
       const mockPositions = [mockPosition];
-      mockRedis.get.mockResolvedValue(null);
+      redis.get.mockResolvedValue(null);
       (subgraphService.getMarketPositions as jest.Mock).mockResolvedValue(
         mockPositions
       );
@@ -133,7 +123,7 @@ describe("Market Service", () => {
       const result = await marketService.getMarketPositions("1");
       expect(result).toEqual(mockPositions);
       expect(subgraphService.getMarketPositions).toHaveBeenCalledWith("1");
-      expect(mockRedis.setex).toHaveBeenCalledWith(
+      expect(redis.setex).toHaveBeenCalledWith(
         "market:1:positions",
         expect.any(Number),
         JSON.stringify(mockPositions)
@@ -157,12 +147,12 @@ describe("Market Event Handler", () => {
   });
 
   it("should handle price updates", async () => {
-    const mockPrice = Number(ethers.parseUnits("100", 18));
+    const mockPrice = Number(utils.parseUnits("100", 18));
     const mockTimestamp = Math.floor(Date.now() / 1000);
 
     await (handler as any).handlePriceUpdate("1", mockPrice, mockTimestamp);
 
-    expect(mockRedis.setex).toHaveBeenCalledWith(
+    expect(redis.setex).toHaveBeenCalledWith(
       "market:1:price",
       expect.any(Number),
       expect.any(String)
@@ -174,8 +164,8 @@ describe("Market Event Handler", () => {
       id: "1",
       marketId: "1",
       trader: "0x123",
-      amount: Number(ethers.parseUnits("100", 18)),
-      entryPrice: Number(ethers.parseUnits("50", 18)),
+      amount: Number(utils.parseUnits("100", 18)),
+      entryPrice: Number(utils.parseUnits("50", 18)),
       type: PositionType.LONG,
       status: PositionStatus.OPEN,
       createdAt: new Date().toISOString(),
@@ -185,7 +175,7 @@ describe("Market Event Handler", () => {
 
     await (handler as any).handlePositionOpen(mockPosition);
 
-    expect(mockRedis.setex).toHaveBeenCalledWith(
+    expect(redis.setex).toHaveBeenCalledWith(
       "market:1:position:1",
       expect.any(Number),
       expect.stringContaining(mockPosition.id)
@@ -197,18 +187,18 @@ describe("Market Event Handler", () => {
       id: "1",
       marketId: "1",
       trader: "0x123",
-      amount: Number(ethers.parseUnits("100", 18)),
-      entryPrice: Number(ethers.parseUnits("50", 18)),
+      amount: Number(utils.parseUnits("100", 18)),
+      entryPrice: Number(utils.parseUnits("50", 18)),
       type: PositionType.LONG,
       status: PositionStatus.CLOSED,
       createdAt: new Date().toISOString(),
       closedAt: new Date().toISOString(),
-      pnl: Number(ethers.parseUnits("10", 18)),
+      pnl: Number(utils.parseUnits("10", 18)),
     };
 
     await (handler as any).handlePositionClose(mockPosition);
 
-    expect(mockRedis.setex).toHaveBeenCalledWith(
+    expect(redis.setex).toHaveBeenCalledWith(
       "market:1:position:1",
       expect.any(Number),
       expect.stringContaining(mockPosition.id)
@@ -245,7 +235,7 @@ describe("Market Config Service", () => {
   it("should get market ABI", () => {
     const abi = marketConfig.getMarketABI();
     expect(Array.isArray(abi)).toBe(true);
-    expect(abi.length).toBeGreaterThan(0);
+    expect(abi).toHaveLength(2);
   });
 
   it("should add market config", () => {

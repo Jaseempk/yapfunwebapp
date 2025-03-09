@@ -1,5 +1,7 @@
 import { EventEmitter } from "events";
 import { errorHandler } from "../error";
+import { Position } from "../../types/market";
+import { redis } from "../../config/cache";
 
 export enum MarketEventType {
   PRICE_UPDATE = "PRICE_UPDATE",
@@ -8,6 +10,9 @@ export enum MarketEventType {
   LIQUIDATION = "LIQUIDATION",
   MARKET_DEPLOYED = "MARKET_DEPLOYED",
   MARKET_DEPLOYMENT_FAILED = "MARKET_DEPLOYMENT_FAILED",
+  PRICE_UPDATED = "PRICE_UPDATED",
+  POSITION_OPENED = "POSITION_OPENED",
+  POSITION_CLOSED = "POSITION_CLOSED",
 }
 
 interface MarketDeploymentData {
@@ -108,3 +113,36 @@ class MarketEventEmitter extends EventEmitter {
 }
 
 export const marketEvents = MarketEventEmitter.getInstance();
+
+export class MarketEventHandler {
+  private static instance: MarketEventHandler;
+
+  private constructor() {}
+
+  static getInstance(): MarketEventHandler {
+    if (!MarketEventHandler.instance) {
+      MarketEventHandler.instance = new MarketEventHandler();
+    }
+    return MarketEventHandler.instance;
+  }
+
+  async handlePriceUpdate(marketId: string, price: number, timestamp: number): Promise<void> {
+    await redis.setex(`market:${marketId}:price`, 3600, JSON.stringify({ price, timestamp }));
+  }
+
+  async handlePositionOpen(position: Position): Promise<void> {
+    await redis.setex(
+      `market:${position.marketId}:position:${position.id}`,
+      3600,
+      JSON.stringify(position)
+    );
+  }
+
+  async handlePositionClose(position: Position): Promise<void> {
+    await redis.setex(
+      `market:${position.marketId}:position:${position.id}`,
+      3600,
+      JSON.stringify(position)
+    );
+  }
+}

@@ -1,6 +1,7 @@
 import { Market, PricePoint, MarketDeployment } from "../types/market";
 import { ethers } from "ethers";
 import { orderBookAbi } from "../abi/orderBook";
+import { MarketData } from "../types/marketCycle";
 
 const provider = new ethers.providers.JsonRpcProvider(
   process.env.RPC_URL || "http://localhost:8545"
@@ -20,7 +21,7 @@ interface SubgraphMarketInitialized {
 
 // SubgraphPositionClosed interface has been removed as it's no longer used
 
-interface SubgraphOrderFilled {
+export interface SubgraphOrderFilled {
   id: string;
   orderId: string;
   filledQuantity: string;
@@ -29,20 +30,20 @@ interface SubgraphOrderFilled {
   blockTimestamp: string;
 }
 
-interface SubgraphMarketVolume {
+export interface SubgraphMarketVolume {
   totalVolume: string;
 }
 
-interface SubgraphKolMarket {
+export interface SubgraphKolMarket {
   marketAddress: string;
 }
 
-interface SubgraphNewMarket {
+export interface SubgraphNewMarket {
   id: string;
   kolId: string;
 }
 
-interface SubgraphMarket {
+export interface SubgraphMarket {
   id: string;
   name: string;
   description: string;
@@ -57,7 +58,7 @@ interface SubgraphMarket {
   updatedAt: string;
 }
 
-interface SubgraphPosition {
+export interface SubgraphPosition {
   id: string;
   market: {
     id: string;
@@ -272,6 +273,39 @@ export class SubgraphService {
       marketAddress: market.marketAddy,
       kolId: market.kolId,
     }));
+  }
+
+  async getMarketPositions(marketId: string): Promise<SubgraphPosition[]> {
+    const query = `
+      query GetMarketPositions($marketId: ID!) {
+        positions(where: { market: $marketId }) {
+          id
+          market {
+            id
+          }
+          trader
+          amount
+          entryPrice
+          type
+          status
+          pnl
+          createdAt
+          closedAt
+        }
+      }
+    `;
+
+    try {
+      const data = await this.query<{ positions: SubgraphPosition[] }>(
+        this.factoryEndpoint,
+        query,
+        { marketId }
+      );
+      return data.positions || [];
+    } catch (error) {
+      console.error(`Error fetching market positions:`, error);
+      return [];
+    }
   }
 }
 

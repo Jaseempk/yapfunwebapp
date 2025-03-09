@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:18-alpine
 
 WORKDIR /app
 
@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npm run build
+
+# Build with TypeScript
+RUN npm run build || (echo "Build failed. Check TypeScript errors above." && exit 1)
 
 EXPOSE 4000
 
