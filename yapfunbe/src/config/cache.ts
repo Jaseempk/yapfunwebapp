@@ -1,10 +1,30 @@
 import Redis from "ioredis";
 
-export const redis = new Redis({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD,
-});
+let redisConfig: any;
+
+if (process.env.REDIS_URL) {
+  // Use Render's Redis URL format
+  redisConfig = {
+    url: process.env.REDIS_URL,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  };
+} else {
+  // Use traditional configuration for local development
+  redisConfig = {
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT || "6379"),
+    password: process.env.REDIS_PASSWORD,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  };
+}
+
+export const redis = new Redis(redisConfig);
 
 export const CACHE_PREFIX = {
   KOL: "kol:",
