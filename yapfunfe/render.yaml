@@ -2,7 +2,7 @@ services:
   - type: web
     name: yapfun-frontend
     env: node
-    buildCommand: chmod +x build.sh && ./build.sh
+    buildCommand: yarn install --frozen-lockfile && yarn build
     startCommand: yarn start
     nodeVersion: 18.18.0
     envVars:
