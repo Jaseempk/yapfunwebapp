@@ -151,7 +151,7 @@ async function startServer() {
     origin: [
       "http://localhost:3000",
       "https://studio.apollographql.com",
-      "https://yapfun-frontend.onrender.com",
+      "https://yapfunwebapp.onrender.com",
       /\.onrender\.com$/, // Allow all Render domains
     ],
     credentials: true,
@@ -245,7 +245,7 @@ async function startServer() {
     // Get initial KOL data and deploy markets if needed
     const kols = await kolService.getKOLs();
     const kolIds = kols.map((kol: KOL) => kol.user_id);
-    
+
     // Check if a cycle exists to determine if this is a genesis deployment
     let currentCycle = await marketCycleService.getCurrentCycle();
     if (!currentCycle) {

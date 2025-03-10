@@ -154,47 +154,58 @@ export class MarketDeploymentService {
 
   async getMarketAddress(kolId: string): Promise<string> {
     try {
-      // First try using subgraph
-      console.log(
-        `[Market Service] Getting market address via subgraph for KOL ID: ${kolId}`
+      // // First try using subgraph
+      // console.log(
+      //   `[Market Service] Getting market address via subgraph for KOL ID: ${kolId}`
+      // );
+      // try {
+      //   const marketAddress = await subgraphService.checkMarketExists(kolId);
+      //   if (marketAddress) {
+      //     return marketAddress;
+      //   }
+
+      //   // If marketAddress is null, it means the market doesn't exist
+      //   throw new Error(`No market found for KOL ${kolId}`);
+      // } catch (subgraphError) {
+      //   // Only fallback to RPC if the subgraph query itself failed
+      //   // If the error is "No market found", rethrow it
+      //   if (subgraphError.message.includes("No market found")) {
+      //     throw subgraphError;
+      //   }
+
+      //   console.log(
+      //     `[Market Service] Subgraph lookup failed, falling back to RPC for KOL ID: ${kolId}`
+      //   );
+      //   console.error("Subgraph error:", subgraphError);
+
+      // }
+      const kolIdBN = ethers.BigNumber.from(kolId);
+      const rpcMarketAddress = await this.withRetry<string>(
+        async () => await this.factoryContract.kolIdToMarket(kolIdBN)
       );
-      try {
-        const marketAddress = await subgraphService.checkMarketExists(kolId);
-        if (marketAddress) {
-          return marketAddress;
-        }
 
-        // If marketAddress is null, it means the market doesn't exist
-        throw new Error(`No market found for KOL ${kolId}`);
-      } catch (subgraphError) {
-        // Only fallback to RPC if the subgraph query itself failed
-        // If the error is "No market found", rethrow it
-        if (subgraphError.message.includes("No market found")) {
-          throw subgraphError;
-        }
+      console.log("RPCCCCC MARKET ADDRESS:", rpcMarketAddress);
 
+      if (rpcMarketAddress === "0x0000000000000000000000000000000000000000") {
         console.log(
-          `[Market Service] Subgraph lookup failed, falling back to RPC for KOL ID: ${kolId}`
+          "dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe dhe "
         );
-        console.error("Subgraph error:", subgraphError);
-
-        const kolIdBN = ethers.BigNumber.from(kolId);
-        const rpcMarketAddress = await this.withRetry<string>(
-          async () => await this.factoryContract.kolIdToMarket(kolIdBN)
-        );
-
-        if (rpcMarketAddress === "0x0000000000000000000000000000000000000000") {
-          throw new Error(`No market found for KOL ${kolId}`);
-        }
-        return rpcMarketAddress;
+        throw new Error(`No market found for KOL ${kolId}`);
       }
+      return rpcMarketAddress;
     } catch (error) {
+      console.log(
+        "dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha dha "
+      );
       console.error("Error getting market address:", error);
       throw errorHandler.handle(error);
     }
   }
 
-  async deployMarket(kolId: string, isGenesisDeployment: boolean = false): Promise<string> {
+  async deployMarket(
+    kolId: string,
+    isGenesisDeployment: boolean = false
+  ): Promise<string> {
     try {
       // Try to acquire lock first
       const hasLock = await redisService.acquireDeploymentLock(kolId);
@@ -202,22 +213,19 @@ export class MarketDeploymentService {
         throw new Error(`Deployment in progress for KOL ${kolId}`);
       }
 
-      await redisService.setDeploymentStatus(kolId, 'pending');
+      await redisService.setDeploymentStatus(kolId, "pending");
 
-      // Single check for market existence
-      try {
-        const marketAddress = await this.getMarketAddress(kolId);
-        if (marketAddress) {
-          await redisService.setDeploymentStatus(kolId, 'completed');
-          return marketAddress;
-        }
-      } catch (error) {
-        // If error includes "No market found", continue with deployment
-        if (!error.message?.includes("No market found")) {
-          throw error;
-        }
+      // Check if market exists directly without relying on error handling
+      const marketExists = await this.checkMarketExists(kolId);
+      
+      if (marketExists) {
+        // If market exists, get its address and return it
+        const kolIdBN = ethers.BigNumber.from(kolId);
+        const marketAddress = await this.factoryContract.kolIdToMarket(kolIdBN);
+        await redisService.setDeploymentStatus(kolId, "completed");
+        return marketAddress;
       }
-
+      
       // Get expiry timestamp
       let expiresAt: number;
       if (isGenesisDeployment) {
@@ -232,16 +240,18 @@ export class MarketDeploymentService {
         if (!currentCycle) {
           throw new Error("No active market cycle found");
         }
-        expiresAt = Math.floor(currentCycle.globalExpiry / 1000) - Math.floor(Date.now() / 1000);
+        expiresAt =
+          Math.floor(currentCycle.globalExpiry / 1000) -
+          Math.floor(Date.now() / 1000);
         console.log(
           `[Regular Deployment] Using cycle expiry: ${new Date(
             expiresAt * 1000
           ).toISOString()}`
         );
       }
-
       // Get optimized gas prices
-      const { maxFeePerGas, maxPriorityFeePerGas } = await this.getOptimizedGasPrice();
+      const { maxFeePerGas, maxPriorityFeePerGas } =
+        await this.getOptimizedGasPrice();
 
       // Convert kolId to BigNumber and deploy new market
       const kolIdBN = ethers.BigNumber.from(kolId);
@@ -289,13 +299,13 @@ export class MarketDeploymentService {
         (e) => e.event === "NewMarketInitialisedAndWhitelisted"
       );
       if (!event) {
-        await redisService.setDeploymentStatus(kolId, 'failed');
+        await redisService.setDeploymentStatus(kolId, "failed");
         throw new Error("Market creation event not found");
       }
 
       const marketAddress = event.args?.marketAddy;
       if (!marketAddress) {
-        await redisService.setDeploymentStatus(kolId, 'failed');
+        await redisService.setDeploymentStatus(kolId, "failed");
         throw new Error("Market address not found in event");
       }
 
@@ -312,7 +322,7 @@ export class MarketDeploymentService {
       const kol = await kolService.getKOL(kolId);
 
       // Update deployment status
-      await redisService.setDeploymentStatus(kolId, 'completed');
+      await redisService.setDeploymentStatus(kolId, "completed");
 
       // Emit market deployed event
       marketEvents.emit(MarketEventType.MARKET_DEPLOYED, {
@@ -327,7 +337,7 @@ export class MarketDeploymentService {
       return marketAddress;
     } catch (error) {
       console.error("Error deploying market:", error);
-      await redisService.setDeploymentStatus(kolId, 'failed');
+      await redisService.setDeploymentStatus(kolId, "failed");
       marketEvents.emit(MarketEventType.MARKET_DEPLOYMENT_FAILED, {
         kolId,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -348,14 +358,11 @@ export class MarketDeploymentService {
 
     for (const kolId of kolIds) {
       try {
-        const exists = await this.checkMarketExists(kolId);
-        if (!exists) {
-          const marketAddress = await this.deployMarket(
-            kolId,
-            isGenesisDeployment
-          );
-          deployedMarkets.push(marketAddress);
-        }
+        const marketAddress = await this.deployMarket(
+          kolId,
+          isGenesisDeployment
+        );
+        deployedMarkets.push(marketAddress);
       } catch (error) {
         console.error(`Error deploying market for KOL ${kolId}:`, error);
         failedDeployments.push(kolId);

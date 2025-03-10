@@ -67,7 +67,7 @@ export default function MarketDetail({
 
   const { address } = useAccount();
   const {
-    userBalance: balance,
+    inHouseBalance: balance,
     loading: isLoadingBalance,
     refreshBalances: refetchBalance,
   } = useBalances();
