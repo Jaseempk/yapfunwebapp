@@ -12,8 +12,8 @@ export const REDIS_KEYS = {
   MARKET_MINDSHARES: "market:mindshares:", // Append marketAddress
   GLOBAL_EXPIRY: "market:cycle:expiry:", // Append cycleId
   BUFFER_END: "market:cycle:buffer:", // Append cycleId
-  DEPLOYMENT_LOCK: 'deployment:lock',
-  DEPLOYMENT_STATUS: 'deployment:status'
+  DEPLOYMENT_LOCK: "deployment:lock",
+  DEPLOYMENT_STATUS: "deployment:status",
 };
 
 // Redis TTL values (in seconds)
@@ -28,13 +28,13 @@ export const REDIS_TTL = {
 let redisConfig: any;
 
 // Debug: Log environment variables
-console.log('Redis Environment Variables:');
-console.log('REDIS_URL:', process.env.REDIS_URL);
-console.log('REDIS_HOST:', process.env.REDIS_HOST);
-console.log('REDIS_PORT:', process.env.REDIS_PORT);
+console.log("Redis Environment Variables:");
+console.log("REDIS_URL:", process.env.REDIS_URL);
+console.log("REDIS_HOST:", process.env.REDIS_HOST);
+console.log("REDIS_PORT:", process.env.REDIS_PORT);
 
 if (process.env.REDIS_URL) {
-  console.log('Using Redis URL configuration');
+  console.log("Using Redis URL configuration");
   // Use Render's Redis URL format
   redisConfig = {
     url: process.env.REDIS_URL,
@@ -45,12 +45,12 @@ if (process.env.REDIS_URL) {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
     reconnectOnError: (err: Error) => {
-      console.log('Redis reconnect error:', err.message);
+      console.log("Redis reconnect error:", err.message);
       return true;
-    }
+    },
   };
 } else {
-  console.log('Using fallback Redis configuration');
+  console.log("Using fallback Redis configuration");
   // Use traditional configuration for local development
   redisConfig = {
     host: process.env.REDIS_HOST || "localhost",
@@ -61,13 +61,13 @@ if (process.env.REDIS_URL) {
       return delay;
     },
     maxRetriesPerRequest: 3,
-    enableReadyCheck: true
+    enableReadyCheck: true,
   };
 }
 
-console.log('Redis Configuration:', {
+console.log("Redis Configuration:", {
   ...redisConfig,
-  password: redisConfig.password ? '***' : undefined
+  password: redisConfig.password ? "***" : undefined,
 });
 
 // Create Redis client instance
@@ -87,6 +87,7 @@ redisClient.on("ready", () => {
 });
 
 redisClient.on("reconnecting", () => {
+  console.log("REDIS_URL:", process.env.REDIS_URL);
   console.log("Redis is reconnecting");
 });
 
