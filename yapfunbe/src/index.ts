@@ -156,7 +156,14 @@ async function startServer() {
     ],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Apollo-Require-Preflight",
+      "Sec-WebSocket-Protocol",
+      "Sec-WebSocket-Version",
+      "Sec-WebSocket-Key",
+    ],
   };
 
   // Health check endpoint

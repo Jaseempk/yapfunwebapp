@@ -125,10 +125,15 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
             setTimeout(resolve, Math.min(1000 * Math.pow(2, retries), 10000))
           ),
         keepAlive: 10000,
-        connectionParams: async () => ({
+        connectionParams: async () => {
           // Add authentication token if available
-          authToken: localStorage.getItem("authToken"),
-        }),
+          const authToken = typeof window !== 'undefined' ? localStorage.getItem("authToken") : null;
+          return {
+            authToken,
+            // Add a unique client ID to help with debugging
+            clientId: `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
+          };
+        },
         on: {
           connected: () => console.log("WebSocket connected"),
           error: (error) => {
