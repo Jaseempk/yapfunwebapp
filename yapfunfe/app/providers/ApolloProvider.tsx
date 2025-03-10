@@ -120,30 +120,33 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
           console.log("WebSocket error, attempting to retry:", error);
           return true;
         },
-        retryWait: (retries) => new Promise((resolve) => 
-          setTimeout(resolve, Math.min(1000 * Math.pow(2, retries), 10000))
-        ),
+        retryWait: (retries) =>
+          new Promise((resolve) =>
+            setTimeout(resolve, Math.min(1000 * Math.pow(2, retries), 10000))
+          ),
         keepAlive: 10000,
         connectionParams: async () => ({
           // Add authentication token if available
-          authToken: localStorage.getItem('authToken'),
+          authToken: localStorage.getItem("authToken"),
         }),
         on: {
-          connected: () => console.log('WebSocket connected'),
+          connected: () => console.log("WebSocket connected"),
           error: (error) => {
-            console.error('WebSocket error:', error);
+            console.error("WebSocket error:", error);
             // Don't close the connection on error, let the retry mechanism handle it
           },
-          closed: () => console.log('WebSocket connection closed'),
-          connecting: () => console.log('WebSocket connecting...'),
+          closed: () => console.log("WebSocket connection closed"),
+          connecting: () => console.log("WebSocket connecting..."),
           message: (message) => {
             // Add validation for message format
-            if (message.type === 'error' && !message.id) {
-              console.warn('Received error message without ID, adding default ID');
+            if (message.type === "error" && !message.id) {
+              console.warn(
+                "Received error message without ID, adding default ID"
+              );
               // Instead of modifying the read-only property, we'll handle it differently
               // by logging the issue and letting the client handle it
             }
-          }
+          },
         },
       });
 
@@ -151,8 +154,10 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
       const wsLink = new ApolloLink((operation) => {
         return new Observable<FetchResult>((sink) => {
           // Generate a unique ID for this operation
-          const operationId = `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-          
+          const operationId = `op-${Date.now()}-${Math.random()
+            .toString(16)
+            .slice(2)}`;
+
           return wsClient.subscribe(
             {
               ...operation,
@@ -160,8 +165,8 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
               // Add a custom extension to help with debugging
               extensions: {
                 ...operation.extensions,
-                operationId
-              }
+                operationId,
+              },
             },
             {
               next: (data) => sink.next({ data } as FetchResult),
@@ -169,8 +174,10 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
               error: (err) => {
                 console.error("GraphQL WebSocket error:", err);
                 // Try to handle the error gracefully
-                if (err && typeof err === 'object' && 'message' in err) {
-                  console.warn(`WebSocket error details: ${(err as Error).message}`);
+                if (err && typeof err === "object" && "message" in err) {
+                  console.warn(
+                    `WebSocket error details: ${(err as Error).message}`
+                  );
                 }
                 sink.error(err);
               },
