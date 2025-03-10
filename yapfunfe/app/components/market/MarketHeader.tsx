@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "../../components/ui/button";
 import { Clock, ExternalLink, Info, RefreshCcw } from "lucide-react";
 import ExpiryTimer from "../ExpiryTimer";
 

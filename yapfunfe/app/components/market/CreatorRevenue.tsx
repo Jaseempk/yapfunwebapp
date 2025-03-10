@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
 import { DollarSign, Sparkles, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 

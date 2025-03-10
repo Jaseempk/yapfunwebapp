@@ -1,7 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 
 export default function TopPositionBet() {
   return (
@@ -19,10 +24,11 @@ export default function TopPositionBet() {
             <Label htmlFor="amount">Bet Amount (USD)</Label>
             <Input id="amount" type="number" placeholder="100" />
           </div>
-          <Button className="w-full bg-blue-500 hover:bg-blue-600">Place Bet</Button>
+          <Button className="w-full bg-blue-500 hover:bg-blue-600">
+            Place Bet
+          </Button>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
-

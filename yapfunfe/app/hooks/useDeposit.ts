@@ -6,7 +6,7 @@ import { config } from "../providers/Web3Providers";
 import { baseSepolia } from "wagmi/chains";
 import { erc20Abi } from "viem";
 import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "../components/ui/use-toast";
 
 const USDC_ADDRESS = "0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1";
 

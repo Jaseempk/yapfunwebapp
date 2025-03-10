@@ -3,6 +3,8 @@
 # dependencies
 /node_modules
 
+yarn.lock
+
 # next.js
 /.next/
 /out/

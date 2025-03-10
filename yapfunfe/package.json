@@ -72,10 +72,10 @@
     "tsparticles": "^2.9.3",
     "vaul": "^0.9.6",
     "wagmi": "^2.14.11",
+    "@types/node": "^22.13.10",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8",
@@ -83,6 +83,6 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=18.18.0"
   }
 }

@@ -4,9 +4,14 @@ import { useState, useEffect } from "react";
 import { useTradeVolume } from "../hooks/useTradeVolume";
 import TimeFilter from "./TimeFilter";
 import KOLCard from "./KOLCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { useKOLData, KOLData } from "../hooks/useKOLData";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "../components/ui/skeleton";
 
 // Loading skeleton component
 function KOLCardSkeleton() {

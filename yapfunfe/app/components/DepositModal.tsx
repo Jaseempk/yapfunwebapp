@@ -6,9 +6,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, AlertTriangle, Loader2 } from "lucide-react";
 import { escrowAbi, escrowCA } from "@/contractAbi/escrowAbi";

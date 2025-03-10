@@ -2,9 +2,9 @@ services:
   - type: web
     name: yapfun-frontend
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    nodeVersion: 18.17.0
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: yarn start
+    nodeVersion: 18.18.0
     envVars:
       - key: NODE_ENV
         value: production

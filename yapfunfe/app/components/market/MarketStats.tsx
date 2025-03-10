@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "../../components/ui/card";
 import { Clock, Users, MessageSquare, BarChart2 } from "lucide-react";
 
 interface MarketStatsProps {

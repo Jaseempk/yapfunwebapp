@@ -4,8 +4,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 const HowItWorksModal = () => {
@@ -82,7 +82,7 @@ const HowItWorksModal = () => {
         "Use the Analytics page to spot trends",
       ],
       icon: "💡",
-    }
+    },
   ];
 
   const containerVariants = {
@@ -91,34 +91,34 @@ const HowItWorksModal = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
+        delayChildren: 0.2,
+      },
+    },
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { 
-      opacity: 1, 
+    show: {
+      opacity: 1,
       y: 0,
       transition: {
         type: "spring",
-        stiffness: 100
-      }
-    }
+        stiffness: 100,
+      },
+    },
   };
 
   const iconVariants = {
     initial: { scale: 1 },
-    hover: { 
+    hover: {
       scale: 1.2,
       rotate: [0, -10, 10, -10, 0],
       transition: {
         duration: 0.5,
         type: "spring",
-        stiffness: 200
-      }
-    }
+        stiffness: 200,
+      },
+    },
   };
 
   return (
@@ -141,7 +141,7 @@ const HowItWorksModal = () => {
             </motion.div>
           </DialogTitle>
         </DialogHeader>
-        <motion.div 
+        <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="show"
@@ -155,7 +155,7 @@ const HowItWorksModal = () => {
               className="bg-secondary/10 rounded-lg p-6 border border-secondary/20 backdrop-blur-sm hover:bg-secondary/20 transition-all duration-300"
             >
               <div className="flex items-center gap-4 mb-4">
-                <motion.span 
+                <motion.span
                   variants={iconVariants}
                   whileHover="hover"
                   className="text-3xl cursor-pointer"
@@ -175,7 +175,7 @@ const HowItWorksModal = () => {
                     transition={{ delay: index * 0.1 + i * 0.05 }}
                     className="flex items-start gap-3 group"
                   >
-                    <motion.span 
+                    <motion.span
                       className="w-2 h-2 bg-primary rounded-full mt-2 group-hover:scale-150"
                       transition={{ type: "spring", stiffness: 300 }}
                     />

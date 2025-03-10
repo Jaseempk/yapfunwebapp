@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Progress } from "../components/ui/progress";
 import { useQuery } from "@apollo/client";
 import { gql } from "@apollo/client";
 import { formatDistanceToNow } from "date-fns";
