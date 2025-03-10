@@ -26,18 +26,20 @@ export const REDIS_TTL = {
 
 // Redis client configuration
 let redisConfig: any;
+let someValue = false;
 
 // Debug: Log environment variables
 console.log("Redis Environment Variables:");
 console.log("REDIS_URL:", process.env.REDIS_URL);
 console.log("REDIS_HOST:", process.env.REDIS_HOST);
 console.log("REDIS_PORT:", process.env.REDIS_PORT);
-const REDIS_URL = "redis://red-cv7efia3esus73eedpug:6379";
-if (REDIS_URL) {
+
+if (process.env.REDIS_URL) {
   console.log("Using Redis URL configuration");
+  someValue = true;
   // Use Render's Redis URL format
   redisConfig = {
-    url: REDIS_URL,
+    url: process.env.REDIS_URL,
     retryStrategy: (times: number) => {
       const delay = Math.min(times * 50, 2000);
       return delay;
@@ -88,6 +90,7 @@ redisClient.on("ready", () => {
 
 redisClient.on("reconnecting", () => {
   console.log("REDIS_URL:", process.env.REDIS_URL);
+  console.log("someValue:", someValue);
   console.log("Redis is reconnecting");
 });
 
