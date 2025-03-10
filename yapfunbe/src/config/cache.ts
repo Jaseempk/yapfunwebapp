@@ -1,45 +1,12 @@
 import Redis from "ioredis";
 import { errorHandler } from "../services/error";
+import { redisClient } from "./redis";  // Import the existing Redis client
 
 const CACHE_VERSION = "v1";
 const STALE_TTL_MULTIPLIER = 1.5; // Consider data stale after 1.5x TTL
 
-let redisConfig: any;
-
-if (process.env.REDIS_URL) {
-  // Use Render's Redis URL format
-  redisConfig = {
-    url: process.env.REDIS_URL,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
-    reconnectOnError: (err: Error) => {
-      const targetError = "READONLY";
-      if (err.message.includes(targetError)) {
-        return true;
-      }
-      return false;
-    }
-  };
-} else {
-  // Use traditional configuration for local development
-  redisConfig = {
-    host: process.env.REDIS_HOST || "localhost",
-    port: parseInt(process.env.REDIS_PORT || "6379"),
-    password: process.env.REDIS_PASSWORD,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true
-  };
-}
-
-export const redis = new Redis(redisConfig);
+// Use the existing Redis client instead of creating a new one
+export const redis = redisClient;
 
 // Monitor Redis connection
 redis.on("error", (error) => {
