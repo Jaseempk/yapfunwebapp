@@ -1,4 +1,3 @@
-
 import Redis from "ioredis";
 
 // Redis key prefixes
@@ -36,20 +35,76 @@ console.log("REDIS_PORT:", process.env.REDIS_PORT);
 
 if (process.env.REDIS_URL) {
   console.log("Using Redis URL configuration");
-  // Use Render's Redis URL format
-  redisConfig = {
-    url: process.env.REDIS_URL,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
-    reconnectOnError: (err: Error) => {
-      console.log("Redis reconnect error:", err.message);
-      return true;
-    },
-  };
+  
+  try {
+    // Parse the Redis URL manually
+    const redisUrl = process.env.REDIS_URL;
+    console.log("Parsing Redis URL:", redisUrl);
+    
+    // Extract components from URL using regex
+    // Format: redis://username:password@host:port
+    const urlRegex = /redis:\/\/(?:([^:]+):([^@]+)@)?([^:]+)(?::(\d+))?/;
+    const match = redisUrl.match(urlRegex);
+    
+    if (match) {
+      const username = match[1] || null;
+      const password = match[2] || null;
+      const host = match[3];
+      const port = match[4] ? parseInt(match[4]) : 6379;
+      
+      console.log(`Extracted Redis components - Host: ${host}, Port: ${port}, Username: ${username ? 'provided' : 'not provided'}`);
+      
+      // Configure Redis with explicit parameters instead of URL
+      redisConfig = {
+        host: host,
+        port: port,
+        username: username,
+        password: password,
+        retryStrategy: (times: number) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        reconnectOnError: (err: Error) => {
+          console.log("Redis reconnect error:", err.message);
+          return true;
+        },
+      };
+    } else {
+      console.log("Failed to parse Redis URL, falling back to URL-based configuration");
+      // Fallback to URL-based configuration
+      redisConfig = {
+        url: redisUrl,
+        retryStrategy: (times: number) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        reconnectOnError: (err: Error) => {
+          console.log("Redis reconnect error:", err.message);
+          return true;
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Error parsing Redis URL:", error);
+    // Fallback to URL-based configuration
+    redisConfig = {
+      url: process.env.REDIS_URL,
+      retryStrategy: (times: number) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: true,
+      reconnectOnError: (err: Error) => {
+        console.log("Redis reconnect error:", err.message);
+        return true;
+      },
+    };
+  }
 } else {
   console.log("Using fallback Redis configuration");
   // Use traditional configuration for local development
