@@ -24,50 +24,30 @@ export const REDIS_TTL = {
   MINDSHARE_DATA: 3 * 24 * 60 * 60,
 };
 
-// Redis client configuration
-let redisConfig: any;
-
 // Debug: Log environment variables
 console.log("Redis Environment Variables:");
 console.log("REDIS_URL:", process.env.REDIS_URL);
-console.log("REDIS_HOST:", process.env.REDIS_HOST);
-console.log("REDIS_PORT:", process.env.REDIS_PORT);
 
-if (process.env.REDIS_URL) {
-  console.log("Using Redis URL configuration");
-  // Use Render's Redis URL format
-  redisConfig = {
-    url: process.env.REDIS_URL,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
-    reconnectOnError: (err: Error) => {
-      console.log("Redis reconnect error:", err.message);
-      return true;
-    },
-  };
-} else {
-  console.log("Using fallback Redis configuration");
-  // Use traditional configuration for local development
-  redisConfig = {
-    host: process.env.REDIS_HOST || "localhost",
-    port: parseInt(process.env.REDIS_PORT || "6379"),
-    password: process.env.REDIS_PASSWORD,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
-  };
-}
+// Redis client configuration
+const redisConfig = {
+  url: process.env.REDIS_URL,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 50, 2000);
+    console.log(`Redis retry attempt ${times}, delay: ${delay}ms`);
+    return delay;
+  },
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+  reconnectOnError: (err: Error) => {
+    console.log("Redis reconnect error:", err.message);
+    return true;
+  },
+  lazyConnect: true // Don't connect immediately
+};
 
 console.log("Redis Configuration:", {
   ...redisConfig,
-  password: redisConfig.password ? "***" : undefined,
+  url: redisConfig.url ? "[HIDDEN]" : undefined
 });
 
 // Create Redis client instance
@@ -75,20 +55,33 @@ export const redisClient = new Redis(redisConfig);
 
 // Handle Redis connection events
 redisClient.on("connect", () => {
-  console.log("Connected to Redis");
+  console.log("Redis connecting...");
+});
+
+redisClient.on("ready", () => {
+  console.log("Redis connection established and ready");
 });
 
 redisClient.on("error", (error) => {
   console.error("Redis connection error:", error);
 });
 
-redisClient.on("ready", () => {
-  console.log("Redis is ready");
+redisClient.on("close", () => {
+  console.log("Redis connection closed");
 });
 
 redisClient.on("reconnecting", () => {
-  console.log("REDIS_URL:", process.env.REDIS_URL);
-  console.log("Redis is reconnecting");
+  console.log("Redis reconnecting...");
+  console.log("Current REDIS_URL:", process.env.REDIS_URL);
+});
+
+redisClient.on("end", () => {
+  console.log("Redis connection ended");
+});
+
+// Explicitly connect
+redisClient.connect().catch((err) => {
+  console.error("Initial Redis connection failed:", err);
 });
 
 export default redisClient;
