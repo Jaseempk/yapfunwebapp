@@ -359,23 +359,42 @@ class SchedulerService {
 
   // Get current cycle info
   async getCycleInfo() {
-    if (!this.isRedisHealthy) {
-      throw new Error("Redis is not available");
+    try {
+      if (!this.isRedisHealthy) {
+        console.error("Redis is not available for getCycleInfo");
+        return null;
+      }
+
+      const cycle = await marketCycleService.getCurrentCycle();
+      if (!cycle) {
+        console.log("No active cycle found");
+        return {
+          currentCycle: null,
+          status: CycleStatus.NOT_STARTED,
+          topKols: [],
+          crashedOutKols: [],
+          bufferEndTime: null,
+          globalExpiry: null,
+          isInBuffer: false,
+        };
+      }
+
+      const status = await marketCycleService.getCycleStatus();
+      const crashedOutKols = await marketCycleService.getCrashedOutKols();
+
+      return {
+        currentCycle: cycle,
+        status: status,
+        topKols: await kolManagementService.getCurrentTopKOLs(),
+        crashedOutKols: crashedOutKols,
+        bufferEndTime: cycle?.bufferEndTime,
+        globalExpiry: cycle?.globalExpiry,
+        isInBuffer: status === CycleStatus.BUFFER,
+      };
+    } catch (error) {
+      console.error("Error in getCycleInfo:", error);
+      return null;
     }
-
-    const cycle = await marketCycleService.getCurrentCycle();
-    const status = await marketCycleService.getCycleStatus();
-    const crashedOutKols = await marketCycleService.getCrashedOutKols();
-
-    return {
-      currentCycle: cycle,
-      status: status,
-      topKols: await kolManagementService.getCurrentTopKOLs(),
-      crashedOutKols: crashedOutKols,
-      bufferEndTime: cycle?.bufferEndTime,
-      globalExpiry: cycle?.globalExpiry,
-      isInBuffer: status === CycleStatus.BUFFER,
-    };
   }
 
   // Get Redis health status

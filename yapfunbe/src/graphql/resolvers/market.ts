@@ -108,7 +108,10 @@ export const marketResolvers: {
     cycleStatus: async (): Promise<CycleStatus | null> => {
       try {
         const cycleInfo = await schedulerService.getCycleInfo();
-        if (!cycleInfo) return null;
+        if (!cycleInfo) {
+          console.log("No cycle info available");
+          return null;
+        }
 
         const {
           status,
@@ -148,15 +151,19 @@ export const marketResolvers: {
               : Date.now().toString(),
           })) || [];
 
-        return {
+        // Ensure all required fields are present
+        const result: CycleStatus = {
           status: frontendStatus,
           bufferEndTime: bufferEndTime ? bufferEndTime.toString() : undefined,
           globalExpiry: globalExpiry ? globalExpiry.toString() : undefined,
           isInBuffer: isInBuffer || false,
           crashedOutKols: formattedCrashedOutKols,
         };
+
+        console.log("Returning cycle status:", result);
+        return result;
       } catch (error) {
-        console.error("Error fetching cycle status:", error);
+        console.error("Error in cycleStatus resolver:", error);
         return null;
       }
     },

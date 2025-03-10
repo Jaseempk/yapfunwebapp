@@ -6,6 +6,7 @@ import { kolService } from "../kol";
 import { errorHandler } from "../error";
 import { subgraphService } from "../subgraph";
 import { marketCycleService } from "../marketCycle";
+import { redisService } from "../redisService";
 
 type RetryableOperation<T> = () => Promise<T>;
 
@@ -193,23 +194,33 @@ export class MarketDeploymentService {
     }
   }
 
-  async deployMarket(
-    kolId: string,
-    isGenesisDeployment: boolean = false
-  ): Promise<string> {
+  async deployMarket(kolId: string, isGenesisDeployment: boolean = false): Promise<string> {
     try {
-      // Check if market already exists
-      const exists = await this.checkMarketExists(kolId);
-      if (exists) {
-        throw new Error(`Market already exists for KOL ${kolId}`);
+      // Try to acquire lock first
+      const hasLock = await redisService.acquireDeploymentLock(kolId);
+      if (!hasLock) {
+        throw new Error(`Deployment in progress for KOL ${kolId}`);
+      }
+
+      await redisService.setDeploymentStatus(kolId, 'pending');
+
+      // Single check for market existence
+      try {
+        const marketAddress = await this.getMarketAddress(kolId);
+        if (marketAddress) {
+          await redisService.setDeploymentStatus(kolId, 'completed');
+          return marketAddress;
+        }
+      } catch (error) {
+        // If error includes "No market found", continue with deployment
+        if (!error.message?.includes("No market found")) {
+          throw error;
+        }
       }
 
       // Get expiry timestamp
       let expiresAt: number;
-
-      // For genesis deployment, use a default expiry (72 hours from now)
       if (isGenesisDeployment) {
-        // Convert to seconds since Unix epoch (contract expects seconds, not milliseconds)
         expiresAt = 72 * 60 * 60;
         console.log(
           `[Genesis Deployment] Using default expiry: ${new Date(
@@ -217,15 +228,11 @@ export class MarketDeploymentService {
           ).toISOString()}`
         );
       } else {
-        // Regular deployment - check for active cycle
         const currentCycle = await marketCycleService.getCurrentCycle();
         if (!currentCycle) {
           throw new Error("No active market cycle found");
         }
-        // Convert milliseconds to seconds for the contract
-        // Use the absolute timestamp from globalExpiry
-        expiresAt =
-          Math.floor(currentCycle.globalExpiry / 1000) - Date.now() / 1000;
+        expiresAt = Math.floor(currentCycle.globalExpiry / 1000) - Math.floor(Date.now() / 1000);
         console.log(
           `[Regular Deployment] Using cycle expiry: ${new Date(
             expiresAt * 1000
@@ -233,30 +240,14 @@ export class MarketDeploymentService {
         );
       }
 
-      // Add debug logging for expiry
-      console.log(`[Debug] Expiry timestamp (seconds): ${expiresAt}`);
-      console.log(
-        `[Debug] Current time (seconds): ${Math.floor(Date.now() / 1000)}`
-      );
-      console.log(
-        `[Debug] Time until expiry (hours): ${(
-          (expiresAt - Math.floor(Date.now() / 1000)) /
-          3600
-        ).toFixed(2)}`
-      );
+      // Get optimized gas prices
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.getOptimizedGasPrice();
 
-      // Convert kolId to BigNumber and deploy new market with Oracle address
+      // Convert kolId to BigNumber and deploy new market
       const kolIdBN = ethers.BigNumber.from(kolId);
       console.log(
         `[Market Service] Deploying market for KOL ID (BigNumber): ${kolIdBN.toString()}`
       );
-      console.log(
-        `[Market Service] Using expiry timestamp (in seconds): ${expiresAt}`
-      );
-
-      // Get optimized gas prices
-      const { maxFeePerGas, maxPriorityFeePerGas } =
-        await this.getOptimizedGasPrice();
 
       // Add gas limit estimation
       const gasLimit = await this.factoryContract.estimateGas.initialiseMarket(
@@ -269,17 +260,16 @@ export class MarketDeploymentService {
         }
       );
 
-      // Prepare transaction with optimized gas settings and estimated gas limit
       const tx = await this.withRetry<ContractTransaction>(
         async () =>
           await this.factoryContract.initialiseMarket(
-            kolIdBN, // Pass BigNumber directly instead of converting to Number
+            kolIdBN,
             yapOracleCA,
             expiresAt,
             {
               maxFeePerGas,
               maxPriorityFeePerGas,
-              gasLimit: gasLimit.mul(120).div(100), // Add 20% buffer to estimated gas
+              gasLimit: gasLimit.mul(120).div(100),
             }
           )
       );
@@ -295,16 +285,17 @@ export class MarketDeploymentService {
 
       const receipt = await tx.wait();
 
-      // Get the market address from the event logs
       const event = receipt.events?.find(
         (e) => e.event === "NewMarketInitialisedAndWhitelisted"
       );
       if (!event) {
+        await redisService.setDeploymentStatus(kolId, 'failed');
         throw new Error("Market creation event not found");
       }
 
       const marketAddress = event.args?.marketAddy;
       if (!marketAddress) {
+        await redisService.setDeploymentStatus(kolId, 'failed');
         throw new Error("Market address not found in event");
       }
 
@@ -320,6 +311,9 @@ export class MarketDeploymentService {
       // Get KOL details for the event
       const kol = await kolService.getKOL(kolId);
 
+      // Update deployment status
+      await redisService.setDeploymentStatus(kolId, 'completed');
+
       // Emit market deployed event
       marketEvents.emit(MarketEventType.MARKET_DEPLOYED, {
         kolId,
@@ -333,12 +327,15 @@ export class MarketDeploymentService {
       return marketAddress;
     } catch (error) {
       console.error("Error deploying market:", error);
+      await redisService.setDeploymentStatus(kolId, 'failed');
       marketEvents.emit(MarketEventType.MARKET_DEPLOYMENT_FAILED, {
         kolId,
         error: error instanceof Error ? error.message : "Unknown error",
         timestamp: Date.now(),
       });
       throw errorHandler.handle(error);
+    } finally {
+      await redisService.releaseDeploymentLock(kolId);
     }
   }
 
