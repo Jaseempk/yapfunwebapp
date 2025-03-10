@@ -83,6 +83,13 @@ class SchedulerService {
       if (!this.isRedisHealthy) {
         console.log("Redis connection restored");
         this.isRedisHealthy = true;
+        
+        // Restart jobs if they were stopped
+        if (!this.kaitoUpdateJob.lastDate()) {
+          console.log("Restarting jobs after Redis recovery");
+          this.kaitoUpdateJob.start();
+          this.cycleCheckJob.start();
+        }
       }
     } catch (error) {
       console.error("Redis health check failed:", error);
@@ -90,17 +97,9 @@ class SchedulerService {
 
       // Stop jobs if Redis is down
       if (this.kaitoUpdateJob.lastDate()) {
-        // If lastDate exists, the job is running
         console.log("Stopping jobs due to Redis failure");
         this.kaitoUpdateJob.stop();
         this.cycleCheckJob.stop();
-      }
-
-      // Attempt to reconnect Redis
-      try {
-        await redisClient.connect();
-      } catch (reconnectError) {
-        console.error("Redis reconnection failed:", reconnectError);
       }
     }
   }
