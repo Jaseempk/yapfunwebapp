@@ -9,25 +9,51 @@ export enum ErrorCode {
   RATE_LIMITED = "RATE_LIMITED",
   CONTRACT_ERROR = "CONTRACT_ERROR",
   VALIDATION_ERROR = "VALIDATION_ERROR",
+  CACHE_ERROR = "CACHE_ERROR",
+  NETWORK_ERROR = "NETWORK_ERROR"
+}
+
+export interface ErrorMetadata {
+  code: ErrorCode;
+  statusCode: number;
+  context?: Record<string, any>;
+  timestamp: number;
+  originalError?: Error;
 }
 
 export class AppError extends Error {
+  public readonly metadata: ErrorMetadata;
+
   constructor(
-    public code: ErrorCode,
+    code: ErrorCode,
     message: string,
-    public statusCode: number = 500,
-    public data?: any
+    statusCode: number = 500,
+    context?: Record<string, any>,
+    originalError?: Error
   ) {
     super(message);
     this.name = "AppError";
+    
+    this.metadata = {
+      code,
+      statusCode,
+      context,
+      timestamp: Date.now(),
+      originalError
+    };
+
+    // Preserve the original stack trace if we have an original error
+    if (originalError?.stack) {
+      this.stack = originalError.stack;
+    }
   }
 
   toGraphQLError(): GraphQLError {
     return new GraphQLError(this.message, {
       extensions: {
-        code: this.code,
-        statusCode: this.statusCode,
-        data: this.data,
+        ...this.metadata,
+        // Don't expose internal error details in production
+        originalError: process.env.NODE_ENV === "development" ? this.metadata.originalError : undefined
       },
     });
   }
@@ -35,29 +61,52 @@ export class AppError extends Error {
 
 export const errorHandler = {
   handle(error: any): GraphQLError {
-    console.error("Error:", error);
-
+    // Already handled errors
     if (error instanceof AppError) {
       return error.toGraphQLError();
     }
 
-    // Handle Web3/Contract errors
+    // Web3/Contract errors
     if (error.code === "CALL_EXCEPTION" || error.code === "NETWORK_ERROR") {
       return new AppError(
         ErrorCode.CONTRACT_ERROR,
         "Blockchain interaction failed",
         500,
-        { originalError: error.message }
+        { errorCode: error.code, method: error.method },
+        error
       ).toGraphQLError();
     }
 
-    // Handle validation errors
+    // Validation errors
     if (error.name === "ValidationError") {
       return new AppError(
         ErrorCode.VALIDATION_ERROR,
         "Invalid input data",
         400,
-        { details: error.details }
+        { details: error.details },
+        error
+      ).toGraphQLError();
+    }
+
+    // Network errors
+    if (error.name === "NetworkError" || error.message?.includes("network")) {
+      return new AppError(
+        ErrorCode.NETWORK_ERROR,
+        "Network request failed",
+        503,
+        { url: error.url, method: error.method },
+        error
+      ).toGraphQLError();
+    }
+
+    // Cache errors
+    if (error.name === "RedisError" || error.message?.includes("redis")) {
+      return new AppError(
+        ErrorCode.CACHE_ERROR,
+        "Cache operation failed",
+        500,
+        { operation: error.command },
+        error
       ).toGraphQLError();
     }
 
@@ -65,28 +114,10 @@ export const errorHandler = {
     return new AppError(
       ErrorCode.INTERNAL_ERROR,
       "An unexpected error occurred",
-      500
+      500,
+      undefined,
+      error
     ).toGraphQLError();
-  },
-
-  notFound(resource: string): AppError {
-    return new AppError(ErrorCode.NOT_FOUND, `${resource} not found`, 404);
-  },
-
-  unauthorized(message = "Unauthorized"): AppError {
-    return new AppError(ErrorCode.UNAUTHORIZED, message, 401);
-  },
-
-  forbidden(message = "Forbidden"): AppError {
-    return new AppError(ErrorCode.FORBIDDEN, message, 403);
-  },
-
-  badRequest(message: string, data?: any): AppError {
-    return new AppError(ErrorCode.BAD_REQUEST, message, 400, data);
-  },
-
-  rateLimited(message = "Too many requests"): AppError {
-    return new AppError(ErrorCode.RATE_LIMITED, message, 429);
   },
 
   handleGraphQLError(error: any): GraphQLError {
@@ -95,4 +126,49 @@ export const errorHandler = {
     }
     return this.handle(error);
   },
+
+  notFound(resource: string, context?: Record<string, any>): AppError {
+    return new AppError(
+      ErrorCode.NOT_FOUND,
+      `${resource} not found`,
+      404,
+      context
+    );
+  },
+
+  unauthorized(message = "Unauthorized", context?: Record<string, any>): AppError {
+    return new AppError(
+      ErrorCode.UNAUTHORIZED,
+      message,
+      401,
+      context
+    );
+  },
+
+  forbidden(message = "Forbidden", context?: Record<string, any>): AppError {
+    return new AppError(
+      ErrorCode.FORBIDDEN,
+      message,
+      403,
+      context
+    );
+  },
+
+  badRequest(message: string, context?: Record<string, any>): AppError {
+    return new AppError(
+      ErrorCode.BAD_REQUEST,
+      message,
+      400,
+      context
+    );
+  },
+
+  rateLimited(message = "Too many requests", context?: Record<string, any>): AppError {
+    return new AppError(
+      ErrorCode.RATE_LIMITED,
+      message,
+      429,
+      context
+    );
+  }
 };

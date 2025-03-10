@@ -9,6 +9,7 @@ import {
   ApolloLink,
   split,
   FetchResult,
+  FetchPolicy,
 } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
 import { onError } from "@apollo/client/link/error";
@@ -59,12 +60,9 @@ const cache = new InMemoryCache({
     Query: {
       fields: {
         topKOLs: {
-          // Merge function for pagination
-          merge(existing = { kols: [] }, incoming) {
-            return {
-              ...incoming,
-              kols: [...(existing.kols || []), ...(incoming.kols || [])],
-            };
+          // Don't merge with existing data, always use new data
+          merge(_, incoming) {
+            return incoming;
           },
           // Read function to handle cache hits
           read(existing) {
@@ -74,7 +72,7 @@ const cache = new InMemoryCache({
         kols: {
           // Cache configuration for individual KOL queries
           keyArgs: ["id"],
-          merge(existing = [], incoming) {
+          merge(_, incoming) {
             return incoming;
           },
         },
@@ -93,14 +91,11 @@ const cache = new InMemoryCache({
         // Don't cache volume data to ensure fresh data on each render
         volume: {
           // This makes the field always read from the network response
-          read(volume = 0, { readField }) {
-            // Get the user_id to help with debugging
-            const userId = readField('user_id');
-
+          read(volume = 0) {
             return volume;
           },
           // This makes the field never merge with existing data
-          merge(existing, incoming) {
+          merge(_, incoming) {
             return incoming;
           },
         },
@@ -121,23 +116,64 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
       const wsClient = createClient({
         url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4000/graphql",
         retryAttempts: 5,
-        connectionParams: {
-          // Add any connection parameters if needed
+        shouldRetry: (error) => {
+          console.log("WebSocket error, attempting to retry:", error);
+          return true;
+        },
+        retryWait: (retries) => new Promise((resolve) => 
+          setTimeout(resolve, Math.min(1000 * Math.pow(2, retries), 10000))
+        ),
+        keepAlive: 10000,
+        connectionParams: async () => ({
+          // Add authentication token if available
+          authToken: localStorage.getItem('authToken'),
+        }),
+        on: {
+          connected: () => console.log('WebSocket connected'),
+          error: (error) => {
+            console.error('WebSocket error:', error);
+            // Don't close the connection on error, let the retry mechanism handle it
+          },
+          closed: () => console.log('WebSocket connection closed'),
+          connecting: () => console.log('WebSocket connecting...'),
+          message: (message) => {
+            // Add validation for message format
+            if (message.type === 'error' && !message.id) {
+              console.warn('Received error message without ID, adding default ID');
+              // Instead of modifying the read-only property, we'll handle it differently
+              // by logging the issue and letting the client handle it
+            }
+          }
         },
       });
 
       // Create WebSocket link
       const wsLink = new ApolloLink((operation) => {
         return new Observable<FetchResult>((sink) => {
+          // Generate a unique ID for this operation
+          const operationId = `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          
           return wsClient.subscribe(
             {
               ...operation,
               query: operation.query.loc?.source.body || "",
+              // Add a custom extension to help with debugging
+              extensions: {
+                ...operation.extensions,
+                operationId
+              }
             },
             {
               next: (data) => sink.next({ data } as FetchResult),
               complete: () => sink.complete(),
-              error: (err) => sink.error(err),
+              error: (err) => {
+                console.error("GraphQL WebSocket error:", err);
+                // Try to handle the error gracefully
+                if (err && typeof err === 'object' && 'message' in err) {
+                  console.warn(`WebSocket error details: ${(err as Error).message}`);
+                }
+                sink.error(err);
+              },
             }
           );
         });
@@ -162,14 +198,18 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
         cache,
         defaultOptions: {
           watchQuery: {
-            fetchPolicy: "cache-and-network",
+            fetchPolicy: "cache-and-network" as FetchPolicy,
             nextFetchPolicy: "cache-first",
+            errorPolicy: "all",
             notifyOnNetworkStatusChange: true,
           },
           query: {
-            fetchPolicy: "cache-first",
+            fetchPolicy: "cache-and-network" as FetchPolicy,
             errorPolicy: "all",
             notifyOnNetworkStatusChange: true,
+          },
+          mutate: {
+            errorPolicy: "all",
           },
         },
         connectToDevTools: process.env.NODE_ENV === "development",

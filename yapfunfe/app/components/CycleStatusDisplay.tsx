@@ -36,10 +36,17 @@ export default function CycleStatusDisplay() {
 
   const { loading, error, data } = useQuery(GET_CYCLE_STATUS, {
     pollInterval: 30000, // Poll every 30 seconds
+    onError: (error) => {
+      console.error("Error fetching cycle status:", error);
+    },
+    notifyOnNetworkStatusChange: true,
   });
 
   useEffect(() => {
-    if (!data?.cycleStatus) return;
+    if (!data?.cycleStatus) {
+      console.log("No cycle status data available:", data);
+      return;
+    }
 
     const { status, bufferEndTime, globalExpiry, isInBuffer } =
       data.cycleStatus;

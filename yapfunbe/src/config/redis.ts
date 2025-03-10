@@ -12,6 +12,8 @@ export const REDIS_KEYS = {
   MARKET_MINDSHARES: "market:mindshares:", // Append marketAddress
   GLOBAL_EXPIRY: "market:cycle:expiry:", // Append cycleId
   BUFFER_END: "market:cycle:buffer:", // Append cycleId
+  DEPLOYMENT_LOCK: 'deployment:lock',
+  DEPLOYMENT_STATUS: 'deployment:status'
 };
 
 // Redis TTL values (in seconds)

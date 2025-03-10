@@ -107,26 +107,27 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
     nextFetchPolicy: "cache-first", // Use cache for subsequent requests
     errorPolicy: "all", // Return partial data if available
   });
+  console.log("daata:", data);
 
   const [marketAddresses, setMarketAddresses] = useState<
     Record<string, `0x${string}`>
   >({});
-  
+
   // Track which KOLs have zero volume to fetch directly
   const [volumeData, setVolumeData] = useState<Record<string, string>>({});
 
   // Ensure we only process unique KOLs
   const uniqueKols = useMemo(() => {
     if (!data?.topKOLs?.kols) return [];
-    
+
     // Use a Map to deduplicate by user_id
     const kolMap = new Map();
-    data.topKOLs.kols.forEach(kol => {
+    data.topKOLs.kols.forEach((kol) => {
       if (!kolMap.has(kol.user_id)) {
         kolMap.set(kol.user_id, kol);
       }
     });
-    
+
     // Convert back to array and limit to topN
     return Array.from(kolMap.values()).slice(0, topN);
   }, [data, topN]);
@@ -159,11 +160,10 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
       const validAddresses = Object.fromEntries(
         addresses.filter(
           ([_, address]) =>
-            address &&
-            address !== "0x0000000000000000000000000000000000000000"
+            address && address !== "0x0000000000000000000000000000000000000000"
         ) as [string, `0x${string}`][]
       );
-      
+
       setMarketAddresses(validAddresses);
     };
 
@@ -173,33 +173,33 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
   // Fetch volume data directly from blockchain for KOLs with zero volume
   useEffect(() => {
     const fetchVolumeData = async () => {
-      if (uniqueKols.length === 0 || Object.keys(marketAddresses).length === 0) return;
-      
+      if (uniqueKols.length === 0 || Object.keys(marketAddresses).length === 0)
+        return;
+
       // Find KOLs with zero volume that have market addresses
       const zeroVolumeKols = uniqueKols.filter(
-        kol => 
-          (kol.volume === 0 || !kol.volume) && 
-          marketAddresses[kol.user_id]
+        (kol) =>
+          (kol.volume === 0 || !kol.volume) && marketAddresses[kol.user_id]
       );
-      
+
       if (zeroVolumeKols.length === 0) return;
-      
+
       // Fetch volume data directly from contracts
       const volumes = await Promise.all(
         zeroVolumeKols.map(async (kol) => {
           try {
             const marketAddress = marketAddresses[kol.user_id];
             if (!marketAddress) return [kol.user_id, "0"];
-            
+
             const volume = await readContract(config, {
               abi: obAbi,
               address: marketAddress,
               functionName: "marketVolume",
               args: [],
             });
-            
+
             // Format volume as USD string
-            const volumeValue = Number(volume)/1e6 ;
+            const volumeValue = Number(volume) / 1e6;
             return [kol.user_id, formatUSD(volumeValue)];
           } catch (err) {
             console.error(`Error fetching volume for KOL ${kol.user_id}:`, err);
@@ -207,39 +207,38 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
           }
         })
       );
-      
-      setVolumeData(prev => ({
+
+      setVolumeData((prev) => ({
         ...prev,
-        ...Object.fromEntries(volumes)
+        ...Object.fromEntries(volumes),
       }));
     };
-    
+
     fetchVolumeData();
   }, [uniqueKols, marketAddresses]);
 
   const formattedData = useMemo(() => {
     if (uniqueKols.length === 0) return [];
 
-    return uniqueKols.map(
-      (kol: KOLResponse): KOLData => {
-        // Use direct blockchain volume data if available, otherwise use API data
-        const volumeString = volumeData[kol.user_id] || formatUSD(kol.volume || 0);
-        
-        return {
-          rank: parseInt(kol.rank),
-          name: kol.name,
-          handle: `@${kol.username}`,
-          avatar: kol.icon,
-          mindshare: kol.mindshare * 100, // Convert to percentage
-          volume: volumeString,
-          participants: kol.trades || 150,
-          tweetCount: kol.last_7_day_mention_count || 0,
-          performance: "neutral", // Can be enhanced with historical data comparison
-          user_id: kol.user_id,
-          marketAddress: marketAddresses[kol.user_id],
-        };
-      }
-    );
+    return uniqueKols.map((kol: KOLResponse): KOLData => {
+      // Use direct blockchain volume data if available, otherwise use API data
+      const volumeString =
+        volumeData[kol.user_id] || formatUSD(kol.volume || 0);
+
+      return {
+        rank: parseInt(kol.rank),
+        name: kol.name,
+        handle: `@${kol.username}`,
+        avatar: kol.icon,
+        mindshare: kol.mindshare * 100, // Convert to percentage
+        volume: volumeString,
+        participants: kol.trades || 150,
+        tweetCount: kol.last_7_day_mention_count || 0,
+        performance: "neutral", // Can be enhanced with historical data comparison
+        user_id: kol.user_id,
+        marketAddress: marketAddresses[kol.user_id],
+      };
+    });
   }, [uniqueKols, marketAddresses, volumeData]);
 
   return {

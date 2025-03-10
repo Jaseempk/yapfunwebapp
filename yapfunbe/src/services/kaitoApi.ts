@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 interface KaitoKOLResponse {
   data: {
@@ -6,6 +6,13 @@ interface KaitoKOLResponse {
     username: string;
     rank: number;
   };
+}
+
+interface BatchConfig {
+  size: number;
+  delay: number;
+  successCount: number;
+  errorCount: number;
 }
 
 export class KaitoApiService {
@@ -30,12 +37,73 @@ export class KaitoApiService {
   };
 
   private static baseUrl = "https://hub.kaito.ai/api/v1/gateway/ai";
+  
+  private static batchConfig: BatchConfig = {
+    size: 5,        // Start with 5
+    delay: 1000,    // Start with 1 second
+    successCount: 0,
+    errorCount: 0
+  };
+
+  private static readonly MIN_BATCH_SIZE = 2;
+  private static readonly MAX_BATCH_SIZE = 10;
+  private static readonly MIN_DELAY = 500;
+  private static readonly MAX_DELAY = 2000;
+
+  private static adjustBatchConfig(success: boolean) {
+    if (success) {
+      this.batchConfig.successCount++;
+      if (this.batchConfig.successCount >= 3) {
+        // After 3 consecutive successes, try to optimize
+        this.batchConfig.size = Math.min(this.batchConfig.size + 1, this.MAX_BATCH_SIZE);
+        this.batchConfig.delay = Math.max(this.batchConfig.delay - 100, this.MIN_DELAY);
+        this.batchConfig.successCount = 0;
+      }
+      this.batchConfig.errorCount = 0;
+    } else {
+      this.batchConfig.errorCount++;
+      this.batchConfig.successCount = 0;
+      // Immediately reduce batch size and increase delay on error
+      this.batchConfig.size = Math.max(this.batchConfig.size - 1, this.MIN_BATCH_SIZE);
+      this.batchConfig.delay = Math.min(this.batchConfig.delay * 1.5, this.MAX_DELAY);
+    }
+  }
+
+  private static async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await operation();
+        this.adjustBatchConfig(true); // Success
+        return result;
+      } catch (error) {
+        lastError = error as Error;
+        this.adjustBatchConfig(false); // Failure
+        
+        if (error instanceof AxiosError && error.response?.status === 429) {
+          // Rate limit hit - use exponential backoff
+          const backoffDelay = Math.min(Math.pow(2, attempt) * 1000, 10000);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          continue;
+        }
+        
+        // For other errors, throw immediately
+        throw error;
+      }
+    }
+    
+    throw lastError || new Error('Operation failed after retries');
+  }
 
   // Fetch individual KOL data
   static async getIndividualKOLData(
     kolId: string
   ): Promise<{ mindshare: number; username: string; rank: number } | null> {
-    try {
+    return this.retryWithBackoff(async () => {
       const data = {
         path: "/api/yapper/public_kol_mindshare",
         method: "GET",
@@ -56,7 +124,7 @@ export class KaitoApiService {
       );
 
       if (!response.data?.data) {
-        console.error(`No data returned for KOL ${kolId}`);
+        console.warn(`No data returned for KOL ${kolId}`);
         return null;
       }
 
@@ -65,10 +133,7 @@ export class KaitoApiService {
         username: response.data.data.username,
         rank: response.data.data.rank,
       };
-    } catch (error) {
-      console.error(`Error fetching data for KOL ${kolId}:`, error);
-      return null;
-    }
+    });
   }
 
   // Batch update crashed out KOLs
@@ -81,25 +146,35 @@ export class KaitoApiService {
       string,
       { mindshare: number; username: string; rank: number }
     >();
+    
+    for (let i = 0; i < kolIds.length; i += this.batchConfig.size) {
+      const batch = kolIds.slice(i, i + this.batchConfig.size);
+      
+      try {
+        // Process batch with concurrent requests
+        const promises = batch.map(kolId => this.getIndividualKOLData(kolId));
+        const batchResults = await Promise.allSettled(promises);
 
-    // Process KOLs in batches to avoid rate limiting
-    const batchSize = 5;
-    for (let i = 0; i < kolIds.length; i += batchSize) {
-      const batch = kolIds.slice(i, i + batchSize);
-      const promises = batch.map((kolId) => this.getIndividualKOLData(kolId));
+        // Process results
+        batchResults.forEach((result, index) => {
+          const kolId = batch[index];
+          if (result.status === "fulfilled" && result.value) {
+            results.set(kolId, result.value);
+          }
+        });
 
-      const batchResults = await Promise.allSettled(promises);
+        // Successful batch, adjust config
+        this.adjustBatchConfig(true);
 
-      batchResults.forEach((result, index) => {
-        const kolId = batch[index];
-        if (result.status === "fulfilled" && result.value) {
-          results.set(kolId, result.value);
-        }
-      });
+      } catch (error) {
+        // Failed batch, adjust config
+        this.adjustBatchConfig(false);
+        console.error(`Error processing batch starting at index ${i}:`, error);
+      }
 
-      // Add delay between batches to respect rate limits
-      if (i + batchSize < kolIds.length) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Apply adaptive delay between batches
+      if (i + this.batchConfig.size < kolIds.length) {
+        await new Promise(resolve => setTimeout(resolve, this.batchConfig.delay));
       }
     }
 

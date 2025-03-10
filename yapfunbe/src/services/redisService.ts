@@ -177,6 +177,40 @@ export class RedisService {
     }
   }
 
+  // Deployment Lock Management
+  async acquireDeploymentLock(kolId: string): Promise<boolean> {
+    const key = `${REDIS_KEYS.DEPLOYMENT_LOCK}:${kolId}`;
+    try {
+      // Using setnx for atomic lock acquisition
+      const result = await redisClient.setnx(key, '1');
+      if (result === 1) {
+        // If lock acquired, set expiry
+        await redisClient.expire(key, 300); // 5 minutes
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error(`Failed to acquire deployment lock for KOL ${kolId}:`, error);
+      return false;
+    }
+  }
+
+  async releaseDeploymentLock(kolId: string): Promise<void> {
+    const key = `${REDIS_KEYS.DEPLOYMENT_LOCK}:${kolId}`;
+    await redisClient.del(key);
+  }
+
+  // Deployment Status Management
+  async setDeploymentStatus(kolId: string, status: 'pending' | 'completed' | 'failed'): Promise<void> {
+    const key = `${REDIS_KEYS.DEPLOYMENT_STATUS}:${kolId}`;
+    await redisClient.set(key, status);
+  }
+
+  async getDeploymentStatus(kolId: string): Promise<string | null> {
+    const key = `${REDIS_KEYS.DEPLOYMENT_STATUS}:${kolId}`;
+    return redisClient.get(key);
+  }
+
   // Utility Methods
   async clearCycleData(cycleId: string): Promise<void> {
     const keys = [
