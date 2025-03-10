@@ -11,6 +11,8 @@ import { Progress } from "../components/ui/progress";
 import { useQuery } from "@apollo/client";
 import { gql } from "@apollo/client";
 import { formatDistanceToNow } from "date-fns";
+import { Alert, AlertTitle, AlertDescription } from "../components/ui/alert";
+import { AlertTriangle, Clock } from "lucide-react";
 
 // GraphQL query to get cycle status
 const GET_CYCLE_STATUS = gql`
@@ -30,23 +32,46 @@ const GET_CYCLE_STATUS = gql`
   }
 `;
 
+// Function to format countdown time
+const formatCountdown = (milliseconds: number) => {
+  if (milliseconds <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+  
+  const seconds = Math.floor((milliseconds / 1000) % 60);
+  const minutes = Math.floor((milliseconds / (1000 * 60)) % 60);
+  const hours = Math.floor((milliseconds / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(milliseconds / (1000 * 60 * 60 * 24));
+  
+  return { days, hours, minutes, seconds };
+};
+
 export default function CycleStatusDisplay() {
   const [timeRemaining, setTimeRemaining] = useState<string>("");
+  const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({ 
+    days: 0, hours: 0, minutes: 0, seconds: 0 
+  });
   const [progress, setProgress] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { loading, error, data } = useQuery(GET_CYCLE_STATUS, {
     pollInterval: 30000, // Poll every 30 seconds
     onError: (error) => {
       console.error("Error fetching cycle status:", error);
+      setErrorMessage(error.message || "Failed to fetch cycle status");
     },
     notifyOnNetworkStatusChange: true,
   });
 
   useEffect(() => {
     if (!data?.cycleStatus) {
-      console.log("No cycle status data available:", data);
+      if (data) {
+        console.log("No cycle status data available:", data);
+        setErrorMessage("No cycle data available. The cycle may not be initialized.");
+      }
       return;
     }
+
+    // Clear any previous error messages when we get valid data
+    setErrorMessage(null);
 
     const { status, bufferEndTime, globalExpiry, isInBuffer } =
       data.cycleStatus;
@@ -56,7 +81,16 @@ export default function CycleStatusDisplay() {
       const now = Date.now();
       let targetTime = isInBuffer ? bufferEndTime : globalExpiry;
 
-      if (!targetTime) return;
+      if (!targetTime) {
+        setTimeRemaining("Not available");
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        if (!errorMessage) {
+          setErrorMessage(isInBuffer ? 
+            "Buffer end time is not available" : 
+            "Global expiry time is not available");
+        }
+        return;
+      }
 
       // Convert to number if it's a string
       targetTime =
@@ -64,6 +98,9 @@ export default function CycleStatusDisplay() {
 
       // Calculate time remaining
       const remaining = Math.max(0, targetTime - now);
+      
+      // Update countdown object
+      setCountdown(formatCountdown(remaining));
 
       // Calculate progress percentage
       let progressValue = 0;
@@ -79,7 +116,7 @@ export default function CycleStatusDisplay() {
 
       setProgress(Math.min(100, Math.max(0, progressValue)));
 
-      // Format time remaining
+      // Format time remaining text
       if (remaining > 0) {
         setTimeRemaining(
           formatDistanceToNow(new Date(targetTime), { addSuffix: true })
@@ -96,15 +133,39 @@ export default function CycleStatusDisplay() {
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [data]);
+  }, [data, errorMessage]);
 
-  if (loading)
-    return <div className="animate-pulse">Loading cycle status...</div>;
-  if (error)
-    return <div className="text-red-500">Error loading cycle status</div>;
-  if (!data?.cycleStatus) return null;
+  // Render loading state
+  if (loading && !data) {
+    return (
+      <Card className="w-full">
+        <CardContent className="pt-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const { status, isInBuffer, crashedOutKols } = data.cycleStatus;
+  // Render error state
+  if (error && !data) {
+    return (
+      <Alert variant="destructive" className="w-full">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          {error.message || "Failed to load cycle status"}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // If we have an error message but also have data, show the data with an error alert
+  const { status, isInBuffer, crashedOutKols } = data?.cycleStatus || {};
   const hasCrashedOutKols = crashedOutKols && crashedOutKols.length > 0;
 
   return (
@@ -115,6 +176,14 @@ export default function CycleStatusDisplay() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {errorMessage && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Warning</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">
@@ -133,6 +202,32 @@ export default function CycleStatusDisplay() {
             ) : (
               <span>Cycle ends {timeRemaining}</span>
             )}
+          </div>
+
+          {/* Global Expiry Countdown Display */}
+          <div className="mt-4">
+            <div className="flex items-center justify-center gap-1 text-xs font-medium mb-2">
+              <Clock className="h-3 w-3" />
+              <span>Time until Global Expiry:</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
+                <div className="text-xl font-bold">{countdown.days}</div>
+                <div className="text-xs text-muted-foreground">Days</div>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
+                <div className="text-xl font-bold">{countdown.hours}</div>
+                <div className="text-xs text-muted-foreground">Hours</div>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
+                <div className="text-xl font-bold">{countdown.minutes}</div>
+                <div className="text-xs text-muted-foreground">Minutes</div>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
+                <div className="text-xl font-bold">{countdown.seconds}</div>
+                <div className="text-xs text-muted-foreground">Seconds</div>
+              </div>
+            </div>
           </div>
 
           {isInBuffer && (
