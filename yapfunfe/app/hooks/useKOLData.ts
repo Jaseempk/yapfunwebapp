@@ -103,8 +103,8 @@ export function useKOLData({ timeFilter, topN = 100 }: UseKOLDataProps) {
       duration: timeFilterToDuration[timeFilter] || "SEVEN_DAYS",
       topN,
     },
-    fetchPolicy: "cache-first", // Use cache for better performance
-    nextFetchPolicy: "cache-only", // Avoid network requests on re-renders
+    fetchPolicy: "cache-and-network", // Use cache first, then update from network
+    nextFetchPolicy: "cache-first", // Use cache for subsequent requests
     errorPolicy: "all", // Return partial data if available
   });
 

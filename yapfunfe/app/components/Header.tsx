@@ -128,17 +128,35 @@ export default function Header() {
           className={`hidden md:flex items-center transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-64' : 'w-10'}`}
           onClick={() => !isSearchExpanded && setIsSearchExpanded(true)}
         >
-          {isSearchExpanded ? (
-            <SearchBar 
-              value={searchValue} 
-              onChange={setSearchValue} 
-              className="w-full"
-            />
-          ) : (
-            <button className="p-2 rounded-full hover:bg-secondary/50 transition-colors">
-              <Search size={18} />
-            </button>
-          )}
+          <AnimatePresence mode="wait">
+            {isSearchExpanded ? (
+              <motion.div 
+                key="expanded"
+                initial={{ opacity: 0, width: 40 }}
+                animate={{ opacity: 1, width: '100%' }}
+                exit={{ opacity: 0, width: 40 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="w-full"
+              >
+                <SearchBar 
+                  value={searchValue} 
+                  onChange={setSearchValue} 
+                  className="w-full"
+                />
+              </motion.div>
+            ) : (
+              <motion.button 
+                key="collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
+              >
+                <Search size={18} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Search Bar - Mobile (expandable) */}
@@ -146,22 +164,36 @@ export default function Header() {
           className="md:hidden flex items-center mx-4 transition-all duration-300 ease-in-out"
           style={{ width: isMobileMenuOpen ? '0' : (isSearchExpanded ? '100%' : '40px') }}
         >
-          {isSearchExpanded ? (
-            <div className="w-full">
-              <SearchBar 
-                value={searchValue} 
-                onChange={setSearchValue} 
+          <AnimatePresence mode="wait">
+            {isSearchExpanded ? (
+              <motion.div 
+                key="mobile-expanded"
+                initial={{ opacity: 0, scale: 0.9, width: 40 }}
+                animate={{ opacity: 1, scale: 1, width: '100%' }}
+                exit={{ opacity: 0, scale: 0.9, width: 40 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="w-full"
-              />
-            </div>
-          ) : (
-            <button 
-              className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
-              onClick={() => setIsSearchExpanded(true)}
-            >
-              <Search size={18} />
-            </button>
-          )}
+              >
+                <SearchBar 
+                  value={searchValue} 
+                  onChange={setSearchValue} 
+                  className="w-full"
+                />
+              </motion.div>
+            ) : (
+              <motion.button 
+                key="mobile-collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
+                onClick={() => setIsSearchExpanded(true)}
+              >
+                <Search size={18} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Navigation Links - Desktop */}
@@ -176,7 +208,7 @@ export default function Header() {
                 : "hover:bg-secondary/50"
             }`}
           >
-            <Home size={16} />
+
             <span>Rankings</span>
           </Link>
 
@@ -189,7 +221,7 @@ export default function Header() {
                   : "hover:bg-secondary/50"
               }`}
             >
-              <TrendingUp size={16} />
+            
               <span>Positions</span>
             </button>
           )}
@@ -222,10 +254,8 @@ export default function Header() {
             </Link>
           )}
 
-          <div className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors hover:bg-secondary/50">
-            <HelpCircle size={16} />
+
             <HowItWorksModal />
-          </div>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -293,7 +323,7 @@ export default function Header() {
                   }`}
                   onClick={toggleMobileMenu}
                 >
-                  <Home size={18} />
+
                   <span>Rankings</span>
                 </Link>
 
@@ -324,13 +354,13 @@ export default function Header() {
                     }`}
                     onClick={toggleMobileMenu}
                   >
-                    <User size={18} />
+
                     <span>Profile</span>
                   </Link>
                 )}
 
                 <div className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50">
-                  <HelpCircle size={18} />
+
                   <HowItWorksModal />
                 </div>
               </nav>
