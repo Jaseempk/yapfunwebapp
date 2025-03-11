@@ -71,18 +71,7 @@ const HowItWorksModal = () => {
         "Profits/losses are settled in USDC to your in-house balance",
       ],
       icon: "⚙️",
-    },
-    {
-      title: "Tips for Success",
-      content: [
-        "Research KOLs before trading their markets",
-        "Start with smaller positions to learn the platform",
-        "Monitor market cycles to time your entries/exits",
-        "Diversify across multiple KOL markets",
-        "Use the Analytics page to spot trends",
-      ],
-      icon: "💡",
-    },
+    }
   ];
 
   const containerVariants = {

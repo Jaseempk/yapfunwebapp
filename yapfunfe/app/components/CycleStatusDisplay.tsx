@@ -35,19 +35,27 @@ const GET_CYCLE_STATUS = gql`
 // Function to format countdown time
 const formatCountdown = (milliseconds: number) => {
   if (milliseconds <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-  
+
   const seconds = Math.floor((milliseconds / 1000) % 60);
   const minutes = Math.floor((milliseconds / (1000 * 60)) % 60);
   const hours = Math.floor((milliseconds / (1000 * 60 * 60)) % 24);
   const days = Math.floor(milliseconds / (1000 * 60 * 60 * 24));
-  
+
   return { days, hours, minutes, seconds };
 };
 
 export default function CycleStatusDisplay() {
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({ 
-    days: 0, hours: 0, minutes: 0, seconds: 0 
+  const [countdown, setCountdown] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  }>({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
   });
   const [progress, setProgress] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,7 +73,9 @@ export default function CycleStatusDisplay() {
     if (!data?.cycleStatus) {
       if (data) {
         console.log("No cycle status data available:", data);
-        setErrorMessage("No cycle data available. The cycle may not be initialized.");
+        setErrorMessage(
+          "No cycle data available. The cycle may not be initialized."
+        );
       }
       return;
     }
@@ -85,9 +95,11 @@ export default function CycleStatusDisplay() {
         setTimeRemaining("Not available");
         setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         if (!errorMessage) {
-          setErrorMessage(isInBuffer ? 
-            "Buffer end time is not available" : 
-            "Global expiry time is not available");
+          setErrorMessage(
+            isInBuffer
+              ? "Buffer end time is not available"
+              : "Global expiry time is not available"
+          );
         }
         return;
       }
@@ -98,7 +110,7 @@ export default function CycleStatusDisplay() {
 
       // Calculate time remaining
       const remaining = Math.max(0, targetTime - now);
-      
+
       // Update countdown object
       setCountdown(formatCountdown(remaining));
 
@@ -161,35 +173,6 @@ export default function CycleStatusDisplay() {
           {error.message || "Failed to load cycle status"}
         </AlertDescription>
       </Alert>
-    );
-  }
-
-  // Render no cycle state
-  if (!data?.cycleStatus) {
-    return (
-      <Card className="w-full">
-        <CardHeader className="pb-2 text-center">
-          <CardTitle className="text-lg font-medium">Market Cycle</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              <p className="text-amber-500 font-medium">No active market cycle</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                The market cycle data is not available. This could be because:
-              </p>
-              <ul className="text-sm text-muted-foreground mt-2 list-disc list-inside mx-auto max-w-xs">
-                <li>The system is being initialized</li>
-                <li>The backend is being redeployed</li>
-                <li>There is a temporary connection issue</li>
-              </ul>
-              <div className="mt-4 flex justify-center">
-                <div className="animate-pulse h-2 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     );
   }
 
