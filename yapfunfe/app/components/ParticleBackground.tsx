@@ -13,6 +13,7 @@ export default function ParticleBackground() {
   return (
     <Particles
       id="tsparticles"
+      className="fixed inset-0 -z-10" // Add fixed positioning and negative z-index
       init={particlesInit}
       options={{
         background: {

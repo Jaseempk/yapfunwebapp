@@ -43,11 +43,28 @@ export default function TrendingCarousel() {
       })
       .slice(0, 4);
   }, [allKols]);
-  const totalPages = Math.ceil((kols?.length || 0) / itemsPerPage);
-  const pageWidth = containerRef.current?.offsetWidth || 0;
+  
+  // Memoize derived values to prevent recalculation on each render
+  const totalPages = React.useMemo(() => {
+    return Math.ceil((kols?.length || 0) / itemsPerPage);
+  }, [kols, itemsPerPage]);
 
-  // Handle horizontal scroll with trackpad
-  const handleWheel = (e: WheelEvent) => {
+  // Define navigation functions first to avoid circular dependencies
+  const getPageWidth = () => containerRef.current?.offsetWidth || 0;
+  
+  const goToPage = React.useCallback((newPage: number) => {
+    setPage(newPage);
+    if (containerRef.current) {
+      const pageWidth = getPageWidth();
+      controls.start({
+        x: -newPage * pageWidth,
+        transition: { type: "spring", stiffness: 300, damping: 30 },
+      });
+    }
+  }, [controls]);
+
+  // Memoize the wheel handler to prevent recreating on each render
+  const handleWheel = React.useCallback((e: WheelEvent) => {
     if (containerRef.current) {
       // Prioritize horizontal scrolling (deltaX) over vertical (deltaY)
       const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
@@ -58,17 +75,14 @@ export default function TrendingCarousel() {
       containerRef.current.scrollLeft = newScrollLeft;
 
       // Smooth page snapping
+      const pageWidth = getPageWidth();
       const currentPage = Math.round(newScrollLeft / pageWidth);
       if (
         currentPage !== page &&
         currentPage >= 0 &&
         currentPage < totalPages
       ) {
-        setPage(currentPage);
-        controls.start({
-          x: -currentPage * pageWidth,
-          transition: { type: "spring", stiffness: 300, damping: 30 },
-        });
+        goToPage(currentPage);
       }
 
       // Prevent vertical scrolling when horizontal scroll is intended
@@ -76,7 +90,7 @@ export default function TrendingCarousel() {
         e.preventDefault();
       }
     }
-  };
+  }, [page, totalPages, goToPage]);
 
   React.useEffect(() => {
     const container = containerRef.current;
@@ -88,40 +102,46 @@ export default function TrendingCarousel() {
         container.removeEventListener("wheel", handleWheel);
       }
     };
-  }, [page, pageWidth, totalPages]);
+  }, [handleWheel]);
 
-  const handleDragEnd = async (event: any, info: any) => {
+  // Navigation functions using goToPage
+  const nextPage = React.useCallback(() => {
+    const newPage = (page + 1) % totalPages;
+    goToPage(newPage);
+  }, [page, totalPages, goToPage]);
+
+  const prevPage = React.useCallback(() => {
+    const newPage = (page - 1 + totalPages) % totalPages;
+    goToPage(newPage);
+  }, [page, totalPages, goToPage]);
+
+  // Memoize drag handler to prevent recreation on each render
+  const handleDragEnd = React.useCallback((event: any, info: any) => {
+    if (!containerRef.current) return;
+    
+    const pageWidth = getPageWidth();
     const threshold = pageWidth / 4;
     const dragDistance = info.offset.x;
     const dragVelocity = info.velocity.x;
 
     if (Math.abs(dragVelocity) > 500 || Math.abs(dragDistance) > threshold) {
       if (dragDistance > 0 || dragVelocity > 500) {
-        await prevPage();
+        prevPage();
       } else if (dragDistance < 0 || dragVelocity < -500) {
-        await nextPage();
+        nextPage();
       }
     } else {
       controls.start({ x: -page * pageWidth });
     }
-  };
+  }, [page, controls, prevPage, nextPage]);
 
-  const nextPage = async () => {
-    const newPage = (page + 1) % totalPages;
-    setPage(newPage);
-    await controls.start({ x: -newPage * pageWidth });
-  };
 
-  const prevPage = async () => {
-    const newPage = (page - 1 + totalPages) % totalPages;
-    setPage(newPage);
-    await controls.start({ x: -newPage * pageWidth });
-  };
 
   React.useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
-        controls.set({ x: -page * containerRef.current.offsetWidth });
+        const pageWidth = getPageWidth();
+        controls.set({ x: -page * pageWidth });
       }
     };
 
@@ -156,7 +176,7 @@ export default function TrendingCarousel() {
       >
         <motion.div
           drag="x"
-          dragConstraints={{ left: -pageWidth * (totalPages - 1), right: 0 }}
+          dragConstraints={{ left: -getPageWidth() * (totalPages - 1), right: 0 }}
           dragElastic={0.1}
           dragMomentum={true}
           onDragEnd={handleDragEnd}

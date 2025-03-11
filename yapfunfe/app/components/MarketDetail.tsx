@@ -247,7 +247,7 @@ export default function MarketDetail({
             />
           </div>
 
-          <div className="absolute right-4 top-4 z-50">
+          <div className="absolute right-3 top-3 z-50">
             <DialogClose className="rounded-full p-2 bg-background/80 backdrop-blur-sm opacity-70 ring-offset-background transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>

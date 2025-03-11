@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 // Dynamically import components with loading fallbacks
 const Header = dynamic(() => import("./components/Header"), {
   loading: () => (
-    <div className="h-16 bg-background/80 backdrop-blur-lg border-b animate-pulse" />
+    <div className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-lg border-b animate-pulse" />
   ),
   ssr: true,
 });
