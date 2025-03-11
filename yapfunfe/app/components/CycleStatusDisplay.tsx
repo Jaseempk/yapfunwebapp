@@ -164,6 +164,35 @@ export default function CycleStatusDisplay() {
     );
   }
 
+  // Render no cycle state
+  if (!data?.cycleStatus) {
+    return (
+      <Card className="w-full">
+        <CardHeader className="pb-2 text-center">
+          <CardTitle className="text-lg font-medium">Market Cycle</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <p className="text-amber-500 font-medium">No active market cycle</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                The market cycle data is not available. This could be because:
+              </p>
+              <ul className="text-sm text-muted-foreground mt-2 list-disc list-inside mx-auto max-w-xs">
+                <li>The system is being initialized</li>
+                <li>The backend is being redeployed</li>
+                <li>There is a temporary connection issue</li>
+              </ul>
+              <div className="mt-4 flex justify-center">
+                <div className="animate-pulse h-2 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // If we have an error message but also have data, show the data with an error alert
   const { status, isInBuffer, crashedOutKols } = data?.cycleStatus || {};
   const hasCrashedOutKols = crashedOutKols && crashedOutKols.length > 0;
