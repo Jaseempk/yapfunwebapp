@@ -12,7 +12,8 @@ import { useQuery } from "@apollo/client";
 import { gql } from "@apollo/client";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertTitle, AlertDescription } from "../components/ui/alert";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock, Hourglass } from "lucide-react";
+import { motion } from "framer-motion";
 
 // GraphQL query to get cycle status
 const GET_CYCLE_STATUS = gql`
@@ -42,6 +43,28 @@ const formatCountdown = (milliseconds: number) => {
   const days = Math.floor(milliseconds / (1000 * 60 * 60 * 24));
 
   return { days, hours, minutes, seconds };
+};
+
+const floatingAnimation = {
+  y: [0, -10, 0],
+  transition: {
+    duration: 4,
+    repeat: Infinity,
+    ease: "easeInOut"
+  }
+};
+
+const glowAnimation = {
+  boxShadow: [
+    "0 0 10px rgba(0,255,0,0.2)",
+    "0 0 20px rgba(0,255,0,0.3)",
+    "0 0 10px rgba(0,255,0,0.2)"
+  ],
+  transition: {
+    duration: 2,
+    repeat: Infinity,
+    ease: "easeInOut"
+  }
 };
 
 export default function CycleStatusDisplay() {
@@ -150,140 +173,159 @@ export default function CycleStatusDisplay() {
   // Render loading state
   if (loading && !data) {
     return (
-      <Card className="w-full">
-        <CardContent className="pt-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <motion.div
+        animate={floatingAnimation}
+        className="w-full max-w-2xl mx-auto"
+      >
+        <Card className="bg-background/95 backdrop-blur-sm">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-center space-x-3">
+              <Hourglass className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-base font-bold">Loading cycle status...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
-  // Render error state
-  if (error && !data) {
+  // Render error or null cycle state
+  if (error || !data?.cycleStatus) {
     return (
-      <Alert variant="destructive" className="w-full">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          {error.message || "Failed to load cycle status"}
-        </AlertDescription>
-      </Alert>
+      <motion.div
+        animate={floatingAnimation}
+        className="w-full max-w-2xl mx-auto"
+      >
+        <Card className="bg-background/95 backdrop-blur-sm border-red-500/20">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-center space-x-3">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+              <span className="text-base font-bold text-muted-foreground">
+                {error ? "Failed to load cycle status" : "No active cycle"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
-  // If we have an error message but also have data, show the data with an error alert
-  const { status, isInBuffer, crashedOutKols } = data?.cycleStatus || {};
+  // Main cycle status display
+  const { status, isInBuffer, crashedOutKols } = data.cycleStatus;
   const hasCrashedOutKols = crashedOutKols && crashedOutKols.length > 0;
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-medium">
-          {isInBuffer ? "Next Cycle Starting" : "Current Cycle Status"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {errorMessage && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Warning</AlertTitle>
-            <AlertDescription>{errorMessage}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">
-              {isInBuffer ? "Buffer Period" : "Active Cycle"}
-            </span>
-            <span className="text-sm text-muted-foreground">{status}</span>
-          </div>
-
-          <Progress value={progress} className="h-2" />
-
-          <div className="text-center text-sm font-medium">
-            {isInBuffer ? (
-              <span className="text-amber-500">
-                Next cycle starts {timeRemaining}
-              </span>
-            ) : (
-              <span>Cycle ends {timeRemaining}</span>
-            )}
-          </div>
-
-          {/* Global Expiry Countdown Display */}
-          <div className="mt-4">
-            <div className="flex items-center justify-center gap-1 text-xs font-medium mb-2">
-              <Clock className="h-3 w-3" />
-              <span>Time until Global Expiry:</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
-                <div className="text-xl font-bold">{countdown.days}</div>
-                <div className="text-xs text-muted-foreground">Days</div>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
-                <div className="text-xl font-bold">{countdown.hours}</div>
-                <div className="text-xs text-muted-foreground">Hours</div>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
-                <div className="text-xl font-bold">{countdown.minutes}</div>
-                <div className="text-xs text-muted-foreground">Minutes</div>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-2">
-                <div className="text-xl font-bold">{countdown.seconds}</div>
-                <div className="text-xs text-muted-foreground">Seconds</div>
-              </div>
-            </div>
-          </div>
-
-          {isInBuffer && (
-            <div className="text-xs text-center text-muted-foreground mt-2">
-              Trading is paused during the buffer period
-            </div>
+    <motion.div
+      animate={floatingAnimation}
+      className="w-full max-w-4xl mx-auto"
+    >
+      <Card className="bg-background/95 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-2xl font-bold text-center">
+            {isInBuffer ? "Next Cycle Starting" : "Current Cycle Status"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {errorMessage && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertTitle>Warning</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
           )}
 
-          {/* Crashed Out KOLs Section */}
-          {hasCrashedOutKols && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-              <h4 className="text-sm font-medium mb-2">
-                Crashed Out KOLs ({crashedOutKols.length})
-              </h4>
-              <div className="max-h-40 overflow-y-auto">
-                <ul className="space-y-2">
-                  {crashedOutKols.map((kol: any) => (
-                    <li key={kol.id} className="text-xs">
-                      <div className="flex justify-between">
-                        <span className="font-medium">
-                          {kol.username || `KOL #${kol.id}`}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {new Date(
-                            parseInt(kol.crashedOutAt)
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="text-muted-foreground truncate">
-                        Market: {kol.marketAddress.substring(0, 8)}...
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {isInBuffer && (
-                <div className="text-xs text-amber-500 mt-2">
-                  Mindshare data for crashed out KOLs is being preserved
-                </div>
+          <motion.div 
+            className="space-y-6"
+            animate={glowAnimation}
+          >
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-bold">
+                {isInBuffer ? "Buffer Period" : "Active Cycle"}
+              </span>
+              <span className="text-lg font-semibold text-muted-foreground">{status}</span>
+            </div>
+
+            <Progress value={progress} className="h-3" />
+
+            <div className="text-center text-lg font-bold">
+              {isInBuffer ? (
+                <span className="text-amber-500">
+                  Next cycle starts {timeRemaining}
+                </span>
+              ) : (
+                <span>Cycle ends {timeRemaining}</span>
               )}
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+
+            {/* Global Expiry Countdown Display */}
+            <div className="mt-6">
+              <div className="flex items-center justify-center gap-2 text-sm font-bold mb-3">
+                <Clock className="h-5 w-5" />
+                <span>Time until Global Expiry:</span>
+              </div>
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div className="bg-secondary/20 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-3xl font-extrabold">{countdown.days}</div>
+                  <div className="text-sm font-bold text-muted-foreground">Days</div>
+                </div>
+                <div className="bg-secondary/20 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-3xl font-extrabold">{countdown.hours}</div>
+                  <div className="text-sm font-bold text-muted-foreground">Hours</div>
+                </div>
+                <div className="bg-secondary/20 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-3xl font-extrabold">{countdown.minutes}</div>
+                  <div className="text-sm font-bold text-muted-foreground">Minutes</div>
+                </div>
+                <div className="bg-secondary/20 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-3xl font-extrabold">{countdown.seconds}</div>
+                  <div className="text-sm font-bold text-muted-foreground">Seconds</div>
+                </div>
+              </div>
+            </div>
+
+            {isInBuffer && (
+              <div className="text-sm font-bold text-center text-amber-500 mt-4">
+                Trading is paused during the buffer period
+              </div>
+            )}
+
+            {/* Crashed Out KOLs Section */}
+            {hasCrashedOutKols && (
+              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
+                <h4 className="text-lg font-bold mb-3">
+                  Crashed Out KOLs ({crashedOutKols.length})
+                </h4>
+                <div className="max-h-48 overflow-y-auto">
+                  <ul className="space-y-3">
+                    {crashedOutKols.map((kol: any) => (
+                      <li key={kol.id} className="text-sm">
+                        <div className="flex justify-between">
+                          <span className="font-bold">
+                            {kol.username || `KOL #${kol.id}`}
+                          </span>
+                          <span className="font-semibold text-muted-foreground">
+                            {new Date(
+                              parseInt(kol.crashedOutAt)
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="font-medium text-muted-foreground truncate">
+                          Market: {kol.marketAddress.substring(0, 8)}...
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {isInBuffer && (
+                  <div className="text-sm font-bold text-amber-500 mt-3">
+                    Mindshare data for crashed out KOLs is being preserved
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
