@@ -73,19 +73,20 @@ interface MarketChartProps {
   timeRange: (typeof timeRanges)[number]["value"];
   activeTab: "long" | "short";
   onTimeRangeChange: (range: (typeof timeRanges)[number]["value"]) => void;
+  className?: string;
 }
 
-// Generate mock chart data
-const generateChartData = (timeRange: string) => {
+// Generate mock chart data relative to the KOL's mindshare
+const generateChartData = (timeRange: string, baseMindshare: number) => {
   const points =
     {
       "1h": 60,
-      "6h": 360,
-      "1d": 1440,
-      "1w": 10080,
-      "1m": 43200,
-      all: 87600,
-    }[timeRange] || 1440;
+      "6h": 120,
+      "1d": 240,
+      "1w": 336,
+      "1m": 480,
+      all: 600,
+    }[timeRange] || 240;
 
   const interval =
     {
@@ -96,11 +97,33 @@ const generateChartData = (timeRange: string) => {
       "1m": 14400000, // 4 hours
       all: 28800000, // 8 hours
     }[timeRange] || 900000;
-
-  return Array.from({ length: points }, (_, i) => ({
-    time: new Date(Date.now() - (points - i) * interval).toISOString(),
-    value: 30 + Math.random() * 20 + Math.sin(i / 10) * 5,
-  }));
+  
+  // Calculate a reasonable range for fluctuations based on mindshare
+  // Lower mindshare values should have higher volatility
+  const volatilityFactor = Math.max(0.5, Math.min(2, 5 / Math.max(0.1, baseMindshare)));
+  const maxFluctuation = baseMindshare * 0.2 * volatilityFactor; // 20% of mindshare value
+  
+  // Generate a realistic trend with some randomness
+  let trend = 0;
+  const trendStrength = 0.7; // How strongly the trend influences the next value
+  const trendReversion = 0.05; // How quickly the trend reverts to zero
+  
+  return Array.from({ length: points }, (_, i) => {
+    // Update trend with some randomness and mean reversion
+    trend = trend * (1 - trendReversion) + (Math.random() - 0.5) * maxFluctuation * 0.4;
+    
+    // Calculate value based on trend and some randomness
+    const randomFactor = Math.random() * maxFluctuation - maxFluctuation / 2;
+    const sinFactor = Math.sin(i / 20) * maxFluctuation * 0.3;
+    
+    // Combine factors for a realistic looking chart
+    const value = baseMindshare + trend + randomFactor + sinFactor;
+    
+    return {
+      time: new Date(Date.now() - (points - i) * interval).toISOString(),
+      value: Math.max(0.001, value), // Ensure value doesn't go negative
+    };
+  });
 };
 
 export default function MarketChart({
@@ -108,13 +131,14 @@ export default function MarketChart({
   timeRange,
   activeTab,
   onTimeRangeChange,
+  className,
 }: MarketChartProps) {
-  const chartData = useMemo(() => generateChartData(timeRange), [timeRange]);
+  const chartData = useMemo(() => generateChartData(timeRange, mindshare), [timeRange, mindshare]);
 
   return (
-    <Card className="p-4 sm:p-5 rounded-xl">
+    <Card className={`p-4 sm:p-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ${className || ''}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1 animate-in slide-in-from-left duration-500">
           <div className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             {mindshare.toFixed(4)}%
             <span
@@ -133,7 +157,7 @@ export default function MarketChart({
             Last updated: {new Date().toLocaleTimeString()}
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto animate-in slide-in-from-right duration-500">
           {timeRanges.map((range) => (
             <Button
               key={range.value}
@@ -148,7 +172,7 @@ export default function MarketChart({
           ))}
         </div>
       </div>
-      <div className="h-[30vh] sm:h-[35vh] min-h-[180px] sm:min-h-[250px] max-h-[400px] -mx-2 sm:mx-0 touch-pan-y">
+      <div className="h-[30vh] sm:h-[35vh] min-h-[180px] sm:min-h-[250px] max-h-[400px] -mx-2 sm:mx-0 touch-pan-y animate-in fade-in duration-700 delay-300">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid
