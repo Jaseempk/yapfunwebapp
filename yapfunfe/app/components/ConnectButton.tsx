@@ -13,7 +13,7 @@ export const ConnectButton = () => {
         return (
             <button
               onClick={handleClick}
-              className="bg-green-500 hover:bg-green-600 px-4 py-3 rounded-lg text-white transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 flex items-center justify-center"
+              className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg text-white transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 flex items-center justify-center"
             >
               <span className="text-sm font-medium">
                 {isConnected ? ensName ?? truncatedAddress : "Connect Wallet"}

@@ -7,6 +7,7 @@ import {
 } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 const HowItWorksModal = () => {
   const sections = [
@@ -15,7 +16,10 @@ const HowItWorksModal = () => {
       content: [
         "Currently live on Base Sepolia Testnet",
         "Ensure your wallet is connected to Base Sepolia",
-        "Get test USDC from our faucet to start trading",
+        {
+          text: "Get test USDC from our faucet to start trading",
+          link: "https://sepolia.basescan.org/address/0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1#writeContract"
+        },
         "Experience gasless trading with Base's low fees",
       ],
       icon: "⛓️",
@@ -124,7 +128,7 @@ const HowItWorksModal = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
+              className="bg-gradient-to-r from-green-300 via-blue-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm"
             >
               Welcome to YAP - Your Guide to Trading KOL Markets
             </motion.div>
@@ -169,7 +173,16 @@ const HowItWorksModal = () => {
                       transition={{ type: "spring", stiffness: 300 }}
                     />
                     <span className="text-sm text-foreground/80 group-hover:text-primary transition-colors">
-                      {item}
+                      {typeof item === 'object' ? (
+                        <Link 
+                          href={item.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 underline underline-offset-4 decoration-dotted transition-colors"
+                        >
+                          {item.text}
+                        </Link>
+                      ) : item}
                     </span>
                   </motion.li>
                 ))}
