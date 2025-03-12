@@ -176,20 +176,22 @@ export default function CycleStatusDisplay() {
     return (
       <div className="w-full">
         <Card 
-          className="bg-background/95 backdrop-blur-sm border-amber-500/20 transition-all duration-300 hover:shadow-md hover:shadow-amber-500/20 hover:border-amber-500/30 group"
+          className="bg-background/30 backdrop-blur-sm border-l-4 border-amber-500 transition-all duration-300 hover:bg-background/40 group"
         >
-          <CardContent className="py-4">
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-medium">Cycle Status</span>
-                <div className="flex items-center space-x-2 text-amber-500">
-                  <AlertTriangle className="h-4 w-4 group-hover:animate-pulse" />
-                </div>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <span className="absolute -inset-1 bg-amber-500/20 rounded-full animate-ping opacity-75"></span>
               </div>
-              <div className="flex items-center justify-center py-2">
-                <span className="text-lg font-semibold text-amber-500 group-hover:scale-105 transition-transform duration-300">
+              
+              <div className="flex-grow">
+                <span className="text-base font-bold text-amber-500">
                   {error ? "Failed to load cycle data" : "Cycle Not Active"}
                 </span>
+                <p className="text-xs text-muted-foreground">
+                  {error ? "Check connection" : "New cycle initializing soon"}
+                </p>
               </div>
             </div>
           </CardContent>

@@ -83,11 +83,21 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
+        'pulse-slow': {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '0.8' }
+        },
+        'pulse-slower': {
+          '0%, 100%': { opacity: '0.3' },
+          '50%': { opacity: '0.6' }
+        }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+        'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
+        'pulse-slower': 'pulse-slower 5s ease-in-out infinite'
   		}
   	}
   },
