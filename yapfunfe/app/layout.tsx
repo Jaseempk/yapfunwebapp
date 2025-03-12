@@ -51,10 +51,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased overflow-x-hidden">
         <Providers>
-          <ParticleBackground />
-          <Header />
-          <main className="pt-16">{children}</main>
-          <Footer />
+          <div className="flex flex-col min-h-screen">
+            <ParticleBackground />
+            <Header />
+            <main className="pt-16 flex-grow">{children}</main>
+            <Footer />
+          </div>
         </Providers>
       </body>
     </html>
