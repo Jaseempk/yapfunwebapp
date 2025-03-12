@@ -39,18 +39,18 @@ const httpLink = new HttpLink({
 // Request logging middleware
 const loggingLink = new ApolloLink((operation, forward) => {
   const startTime = Date.now();
-  console.log(`[GraphQL Request] ${operation.operationName}:`, {
-    query: operation.query.loc?.source.body,
-    variables: operation.variables,
-  });
+  // console.log(`[GraphQL Request] ${operation.operationName}:`, {
+  //   query: operation.query.loc?.source.body,
+  //   variables: operation.variables,
+  // });
 
   return forward(operation).map((response) => {
     const duration = Date.now() - startTime;
-    console.log(`[GraphQL Response] ${operation.operationName}:`, {
-      data: response.data,
-      errors: response.errors,
-      duration: `${duration}ms`,
-    });
+    // console.log(`[GraphQL Response] ${operation.operationName}:`, {
+    //   data: response.data,
+    //   errors: response.errors,
+    //   duration: `${duration}ms`,
+    // });
     return response;
   });
 });
@@ -127,11 +127,16 @@ export function ApolloProvider({ children }: { children: ReactNode }) {
         keepAlive: 10000,
         connectionParams: async () => {
           // Add authentication token if available
-          const authToken = typeof window !== 'undefined' ? localStorage.getItem("authToken") : null;
+          const authToken =
+            typeof window !== "undefined"
+              ? localStorage.getItem("authToken")
+              : null;
           return {
             authToken,
             // Add a unique client ID to help with debugging
-            clientId: `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
+            clientId: `client-${Date.now()}-${Math.random()
+              .toString(16)
+              .slice(2)}`,
           };
         },
         on: {

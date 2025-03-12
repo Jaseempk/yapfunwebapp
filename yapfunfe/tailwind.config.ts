@@ -91,13 +91,19 @@ const config: Config = {
         'pulse-slower': {
           '0%, 100%': { opacity: '0.3' },
           '50%': { opacity: '0.6' }
+        },
+        'float': {
+          '0%': { transform: 'translateY(0px) rotate(3deg)' },
+          '50%': { transform: 'translateY(-5px) rotate(5deg)' },
+          '100%': { transform: 'translateY(0px) rotate(3deg)' }
         }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
-        'pulse-slower': 'pulse-slower 5s ease-in-out infinite'
+        'pulse-slower': 'pulse-slower 5s ease-in-out infinite',
+        'float': 'float 3s ease-in-out infinite'
   		}
   	}
   },

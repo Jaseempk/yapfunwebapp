@@ -119,7 +119,14 @@ export default function Header() {
         {/* Empty div for spacing */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
-            <span className="text-xl font-bold">Yapfun</span>
+            <span className="relative">
+              <span className="font-['Audiowide'] text-3xl font-normal text-white tracking-wide relative inline-block transform skew-x-[-5deg]">
+                Yap
+              </span>
+              <span className="absolute -top-1 -right-12 text-xs font-bold bg-transparent backdrop-blur-sm text-amber-200 px-1.5 py-0.5 rounded-md tracking-wider animate-float transform rotate-3 border border-amber-200/40 shadow-[0_0_5px_rgba(253,230,138,0.2)]">
+                Beta
+              </span>
+            </span>
           </Link>
         </div>
 
@@ -356,9 +363,7 @@ export default function Header() {
                   </Link>
                 )}
 
-                <div className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50">
-                  <HowItWorksModal />
-                </div>
+                <HowItWorksModal />
               </nav>
 
               {/* Mobile Balance and Connect Button */}

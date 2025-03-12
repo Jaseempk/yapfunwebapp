@@ -11,8 +11,13 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col items-center md:items-start">
-            <div className="text-xl font-bold">
-              Yapfun
+            <div className="relative">
+              <span className="font-['Audiowide'] text-3xl font-normal text-white tracking-wide relative inline-block transform skew-x-[-5deg]">
+                Yap
+              </span>
+              <span className="absolute -top-1 -right-12 text-xs font-bold bg-transparent backdrop-blur-sm text-amber-200 px-1.5 py-0.5 rounded-md tracking-wider animate-float transform rotate-3 border border-amber-200/40 shadow-[0_0_5px_rgba(253,230,138,0.2)]">
+                Beta
+              </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Trade KOL Mindshare
