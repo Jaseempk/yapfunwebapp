@@ -57,14 +57,17 @@ export default function Header() {
   // Handle clicks outside search bar to collapse it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setIsSearchExpanded(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -116,36 +119,36 @@ export default function Header() {
         {/* Empty div for spacing */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
-            <span className="text-xl font-bold">
-              Yapfun
-            </span>
+            <span className="text-xl font-bold">Yapfun</span>
           </Link>
         </div>
 
         {/* Search Bar - Desktop (expanded/collapsed) */}
-        <div 
+        <div
           ref={searchRef}
-          className={`hidden md:flex items-center transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-64' : 'w-10'}`}
+          className={`hidden md:flex items-center transition-all duration-300 ease-in-out ${
+            isSearchExpanded ? "w-64" : "w-10"
+          }`}
           onClick={() => !isSearchExpanded && setIsSearchExpanded(true)}
         >
           <AnimatePresence mode="wait">
             {isSearchExpanded ? (
-              <motion.div 
+              <motion.div
                 key="expanded"
                 initial={{ opacity: 0, width: 40 }}
-                animate={{ opacity: 1, width: '100%' }}
+                animate={{ opacity: 1, width: "100%" }}
                 exit={{ opacity: 0, width: 40 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="w-full"
               >
-                <SearchBar 
-                  value={searchValue} 
-                  onChange={setSearchValue} 
+                <SearchBar
+                  value={searchValue}
+                  onChange={setSearchValue}
                   className="w-full"
                 />
               </motion.div>
             ) : (
-              <motion.button 
+              <motion.button
                 key="collapsed"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -160,28 +163,30 @@ export default function Header() {
         </div>
 
         {/* Search Bar - Mobile (expandable) */}
-        <div 
+        <div
           className="md:hidden flex items-center mx-4 transition-all duration-300 ease-in-out"
-          style={{ width: isMobileMenuOpen ? '0' : (isSearchExpanded ? '100%' : '40px') }}
+          style={{
+            width: isMobileMenuOpen ? "0" : isSearchExpanded ? "100%" : "40px",
+          }}
         >
           <AnimatePresence mode="wait">
             {isSearchExpanded ? (
-              <motion.div 
+              <motion.div
                 key="mobile-expanded"
                 initial={{ opacity: 0, scale: 0.9, width: 40 }}
-                animate={{ opacity: 1, scale: 1, width: '100%' }}
+                animate={{ opacity: 1, scale: 1, width: "100%" }}
                 exit={{ opacity: 0, scale: 0.9, width: 40 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="w-full"
               >
-                <SearchBar 
-                  value={searchValue} 
-                  onChange={setSearchValue} 
+                <SearchBar
+                  value={searchValue}
+                  onChange={setSearchValue}
                   className="w-full"
                 />
               </motion.div>
             ) : (
-              <motion.button 
+              <motion.button
                 key="mobile-collapsed"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -201,14 +206,11 @@ export default function Header() {
           <Link
             href="/"
             className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-              isActive("/") &&
-              !isActive("/profile") &&
-              !isActive("/positions")
+              isActive("/") && !isActive("/profile") && !isActive("/positions")
                 ? "bg-secondary text-secondary-foreground"
                 : "hover:bg-secondary/50"
             }`}
           >
-
             <span>Rankings</span>
           </Link>
 
@@ -221,7 +223,6 @@ export default function Header() {
                   : "hover:bg-secondary/50"
               }`}
             >
-            
               <span>Positions</span>
             </button>
           )}
@@ -254,8 +255,7 @@ export default function Header() {
             </Link>
           )}
 
-
-            <HowItWorksModal />
+          <HowItWorksModal />
         </nav>
 
         {/* Mobile Menu Button */}
@@ -309,7 +309,7 @@ export default function Header() {
             >
               <X className="h-5 w-5" />
             </button>
-            
+
             <div className="flex flex-col h-full p-4">
               <nav className="flex flex-col space-y-2">
                 <Link
@@ -323,7 +323,6 @@ export default function Header() {
                   }`}
                   onClick={toggleMobileMenu}
                 >
-
                   <span>Rankings</span>
                 </Link>
 
@@ -339,7 +338,6 @@ export default function Header() {
                         : "hover:bg-secondary/50"
                     }`}
                   >
-                    <TrendingUp size={18} />
                     <span>Positions</span>
                   </button>
                 )}
@@ -354,13 +352,11 @@ export default function Header() {
                     }`}
                     onClick={toggleMobileMenu}
                   >
-
                     <span>Profile</span>
                   </Link>
                 )}
 
                 <div className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50">
-
                   <HowItWorksModal />
                 </div>
               </nav>
@@ -393,7 +389,6 @@ export default function Header() {
                 <div className="w-full">
                   <ConnectButton />
                 </div>
-
               </div>
             </div>
           </motion.aside>
