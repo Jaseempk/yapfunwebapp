@@ -18,9 +18,9 @@ const HowItWorksModal = () => {
         "Ensure your wallet is connected to Base Sepolia",
         {
           text: "Get test USDC from our faucet to start trading",
-          link: "https://sepolia.basescan.org/address/0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1#writeContract"
+          link: "https://sepolia.basescan.org/address/0xC129124eA2Fd4D63C1Fc64059456D8f231eBbed1#writeContract",
         },
-        "Experience gasless trading with Base's low fees",
+        "Experience seemless trading with Base's low fees",
       ],
       icon: "⛓️",
     },
@@ -75,7 +75,7 @@ const HowItWorksModal = () => {
         "Profits/losses are settled in USDC to your in-house balance",
       ],
       icon: "⚙️",
-    }
+    },
   ];
 
   const containerVariants = {
@@ -117,7 +117,10 @@ const HowItWorksModal = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="font-medium w-full text-left justify-start px-0">
+        <Button
+          variant="ghost"
+          className="font-medium w-full text-left justify-start px-0"
+        >
           <span>How It Works</span>
         </Button>
       </DialogTrigger>
@@ -173,16 +176,18 @@ const HowItWorksModal = () => {
                       transition={{ type: "spring", stiffness: 300 }}
                     />
                     <span className="text-sm text-foreground/80 group-hover:text-primary transition-colors">
-                      {typeof item === 'object' ? (
-                        <Link 
-                          href={item.link} 
-                          target="_blank" 
+                      {typeof item === "object" ? (
+                        <Link
+                          href={item.link}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80 underline underline-offset-4 decoration-dotted transition-colors"
                         >
                           {item.text}
                         </Link>
-                      ) : item}
+                      ) : (
+                        item
+                      )}
                     </span>
                   </motion.li>
                 ))}
