@@ -3,7 +3,6 @@
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 
-
 // Lazy load components
 const TrendingCarousel = lazy(() => import("./components/TrendingCarousel"));
 const RankingsContent = lazy(() => import("./components/RankingsContent"));
@@ -40,8 +39,6 @@ const DeploymentsSkeleton = () => (
 );
 
 export default function Home() {
-
-
   return (
     <main className="container mx-auto px-4 py-6 space-y-8">
       <div className="max-w-md mx-auto mb-6">
@@ -58,17 +55,8 @@ export default function Home() {
         <TrendingCarousel />
       </Suspense>
       <Suspense fallback={<RankingsSkeleton />}>
-          <RankingsContent  />
+        <RankingsContent />
       </Suspense>
-  
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text">
-          New KOL Deployments
-        </h2>
-        <Suspense fallback={<DeploymentsSkeleton />}>
-          <NewKOLDeployments />
-        </Suspense>
-      </div>
     </main>
   );
 }

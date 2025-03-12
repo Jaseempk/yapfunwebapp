@@ -9,7 +9,7 @@ import { ReactNode, useEffect } from "react";
 // Create a more resilient transport with retries and longer timeout
 const transport = http(
   process.env.NEXT_PUBLIC_RPC_URL ||
-    "https://base-sepolia.g.alchemy.com/v2/Tj1n0Zj0HqmL3As-MYG-uLrMyQF3SXjI",
+    "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI",
   {
     timeout: 30000, // 30 seconds
     retryCount: 3,

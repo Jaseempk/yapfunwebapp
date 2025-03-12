@@ -295,10 +295,10 @@ export default function Header() {
       <AnimatePresence>
         {isMobile && isMobileMenuOpen && (
           <motion.aside
-            className="fixed inset-y-0 right-0 z-50 w-4/5 max-w-xs bg-background/95 backdrop-blur-lg shadow-xl border-l border-border/50 pt-12"
-            initial={{ x: 300, opacity: 0 }}
+            className="fixed inset-y-0 left-0 z-50 w-4/5 max-w-xs bg-background/95 backdrop-blur-lg shadow-xl border-r border-border/50 pt-12"
+            initial={{ x: -300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 300, opacity: 0 }}
+            exit={{ x: -300, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
             {/* Close button */}

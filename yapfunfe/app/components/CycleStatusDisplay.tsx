@@ -13,7 +13,7 @@ import { gql } from "@apollo/client";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertTitle, AlertDescription } from "../components/ui/alert";
 import { AlertTriangle, Clock, Hourglass } from "lucide-react";
-import { motion } from "framer-motion";
+
 
 // GraphQL query to get cycle status
 const GET_CYCLE_STATUS = gql`
@@ -45,29 +45,11 @@ const formatCountdown = (milliseconds: number) => {
   return { days, hours, minutes, seconds };
 };
 
-const floatingAnimation = {
-  y: [0, -10, 0],
-  transition: {
-    duration: 4,
-    repeat: Infinity,
-    ease: "easeInOut"
-  }
-};
-
-const glowAnimation = {
-  boxShadow: [
-    "0 0 10px rgba(0,255,0,0.2)",
-    "0 0 20px rgba(0,255,0,0.3)",
-    "0 0 10px rgba(0,255,0,0.2)"
-  ],
-  transition: {
-    duration: 2,
-    repeat: Infinity,
-    ease: "easeInOut"
-  }
-};
+// Removed animations
 
 export default function CycleStatusDisplay() {
+  // Add key to force remount when deployed to Render (Redis data doesn't persist)
+  // This helps with the "No cycle data available" scenario
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [countdown, setCountdown] = useState<{
     days: number;
@@ -173,40 +155,46 @@ export default function CycleStatusDisplay() {
   // Render loading state
   if (loading && !data) {
     return (
-      <motion.div
-        animate={floatingAnimation}
-        className="w-full max-w-2xl mx-auto"
-      >
+      <div className="w-full">
         <Card className="bg-background/95 backdrop-blur-sm">
-          <CardContent className="py-6">
-            <div className="flex items-center justify-center space-x-3">
-              <Hourglass className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-base font-bold">Loading cycle status...</span>
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-medium">Cycle Status</span>
+              <div className="flex items-center space-x-2 text-primary">
+                <Hourglass className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading...</span>
+              </div>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
   }
 
   // Render error or null cycle state
   if (error || !data?.cycleStatus) {
     return (
-      <motion.div
-        animate={floatingAnimation}
-        className="w-full max-w-2xl mx-auto"
-      >
-        <Card className="bg-background/95 backdrop-blur-sm border-red-500/20">
-          <CardContent className="py-6">
-            <div className="flex items-center justify-center space-x-3">
-              <AlertTriangle className="h-6 w-6 text-amber-500" />
-              <span className="text-base font-bold text-muted-foreground">
-                {error ? "Failed to load cycle status" : "No active cycle"}
-              </span>
+      <div className="w-full">
+        <Card 
+          className="bg-background/95 backdrop-blur-sm border-amber-500/20 transition-all duration-300 hover:shadow-md hover:shadow-amber-500/20 hover:border-amber-500/30 group"
+        >
+          <CardContent className="py-4">
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-medium">Cycle Status</span>
+                <div className="flex items-center space-x-2 text-amber-500">
+                  <AlertTriangle className="h-4 w-4 group-hover:animate-pulse" />
+                </div>
+              </div>
+              <div className="flex items-center justify-center py-2">
+                <span className="text-lg font-semibold text-amber-500 group-hover:scale-105 transition-transform duration-300">
+                  {error ? "Failed to load cycle data" : "Cycle Not Active"}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
   }
 
@@ -215,10 +203,7 @@ export default function CycleStatusDisplay() {
   const hasCrashedOutKols = crashedOutKols && crashedOutKols.length > 0;
 
   return (
-    <motion.div
-      animate={floatingAnimation}
-      className="w-full max-w-4xl mx-auto"
-    >
+    <div className="w-full">
       <Card className="bg-background/95 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-2xl font-bold text-center">
@@ -234,10 +219,7 @@ export default function CycleStatusDisplay() {
             </Alert>
           )}
 
-          <motion.div 
-            className="space-y-6"
-            animate={glowAnimation}
-          >
+          <div className="space-y-6">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold">
                 {isInBuffer ? "Buffer Period" : "Active Cycle"}
@@ -323,9 +305,9 @@ export default function CycleStatusDisplay() {
                 )}
               </div>
             )}
-          </motion.div>
+          </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

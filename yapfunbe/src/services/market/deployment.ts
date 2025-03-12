@@ -22,7 +22,7 @@ export class MarketDeploymentService {
     if (!MarketDeploymentService.instance) {
       const rpcUrl =
         process.env.RPC_URL ||
-        "https://base-sepolia.g.alchemy.com/v2/Tj1n0Zj0HqmL3As-MYG-uLrMyQF3SXjI";
+        "https://api.developer.coinbase.com/rpc/v1/base-sepolia/DBytHtVTEsZ9VhQE0Zx7WvomGHot4hTI";
       const provider = new ethers.providers.JsonRpcProvider({
         url: rpcUrl,
         timeout: 30000, // 30 seconds
@@ -217,7 +217,7 @@ export class MarketDeploymentService {
 
       // Check if market exists directly without relying on error handling
       const marketExists = await this.checkMarketExists(kolId);
-      
+
       if (marketExists) {
         // If market exists, get its address and return it
         const kolIdBN = ethers.BigNumber.from(kolId);
@@ -225,7 +225,7 @@ export class MarketDeploymentService {
         await redisService.setDeploymentStatus(kolId, "completed");
         return marketAddress;
       }
-      
+
       // Get expiry timestamp
       let expiresAt: number;
       if (isGenesisDeployment) {

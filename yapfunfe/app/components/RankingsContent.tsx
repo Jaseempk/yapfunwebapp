@@ -12,6 +12,8 @@ import {
 } from "../components/ui/tabs";
 import { useKOLData, KOLData } from "../hooks/useKOLData";
 import { Skeleton } from "../components/ui/skeleton";
+import { Button } from "../components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Loading skeleton component
 function KOLCardSkeleton() {
@@ -51,11 +53,38 @@ export default function RankingsContent({
   searchQuery = "",
 }: RankingsContentProps) {
   const [timeRange, setTimeRange] = useState("7d");
+  const [currentPage, setCurrentPage] = useState(1);
   const { kols, loading, error } = useKOLData({ timeFilter: timeRange });
+  const itemsPerPage = 25; // 25 KOLs per page
+  const totalPages = 4; // 4 pages total
 
   const filteredKols = kols.filter((kol) =>
     kol.handle.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Get current page items
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentKols = filteredKols.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Change page
+  const goToPage = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of rankings when changing page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
 
   if (error) {
     return (
@@ -99,14 +128,22 @@ export default function RankingsContent({
             value="mindshare"
             className="mt-3 focus-visible:outline-none focus-visible:ring-0"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 kol-grid">
+              {/* Special styling for the last KOL card on large screens */}
+              <style jsx global>{`
+                @media (min-width: 1024px) {
+                  .kol-grid > :last-child:nth-child(3n-1) {
+                    grid-column: 2;
+                  }
+                }
+              `}</style>
               {loading
                 ? // Show 6 skeleton cards while loading
                   Array(6)
                     .fill(0)
                     .map((_, i) => <KOLCardSkeleton key={i} />)
-                : // Show all KOLs
-                  filteredKols.map((kol: KOLData) => (
+                : // Show paginated KOLs
+                  currentKols.map((kol: KOLData) => (
                     <KOLCard
                       key={kol.user_id}
                       {...kol}
@@ -115,24 +152,70 @@ export default function RankingsContent({
                     />
                   ))}
             </div>
+            
+            {/* Pagination Controls */}
+            {!loading && filteredKols.length > 0 && (
+              <div className="flex justify-center items-center mt-8 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={prevPage} 
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(page)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={nextPage} 
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent
             value="volume"
             className="mt-3 focus-visible:outline-none focus-visible:ring-0"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 kol-grid">
+              {/* Special styling for the last KOL card on large screens */}
+              <style jsx global>{`
+                @media (min-width: 1024px) {
+                  .kol-grid > :last-child:nth-child(3n-1) {
+                    grid-column: 2;
+                  }
+                }
+              `}</style>
               {loading
                 ? Array(6)
                     .fill(0)
                     .map((_, i) => <KOLCardSkeleton key={i} />)
-                : // Sort KOLs by trade volume
+                : // Sort KOLs by trade volume and paginate
                   [...filteredKols]
                     .sort((a, b) => {
                       const volumeA = Number(a.volume.replace(/[^0-9.]/g, ""));
                       const volumeB = Number(b.volume.replace(/[^0-9.]/g, ""));
                       return volumeB - volumeA;
                     })
+                    .slice(indexOfFirstItem, indexOfLastItem)
                     .map((kol: KOLData) => (
                       <KOLCard
                         key={kol.user_id}
@@ -142,6 +225,43 @@ export default function RankingsContent({
                       />
                     ))}
             </div>
+            
+            {/* Pagination Controls */}
+            {!loading && filteredKols.length > 0 && (
+              <div className="flex justify-center items-center mt-8 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={prevPage} 
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(page)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={nextPage} 
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent

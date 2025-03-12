@@ -11,6 +11,13 @@ const Header = dynamic(() => import("./components/Header"), {
   ssr: true,
 });
 
+const Footer = dynamic(() => import("./components/Footer"), {
+  loading: () => (
+    <div className="w-full h-20 bg-background/80 backdrop-blur-lg border-t animate-pulse" />
+  ),
+  ssr: true,
+});
+
 const ParticleBackground = dynamic(
   () => import("./components/ParticleBackground"),
   {
@@ -47,6 +54,7 @@ export default function RootLayout({
           <ParticleBackground />
           <Header />
           <main className="pt-16">{children}</main>
+          <Footer />
         </Providers>
       </body>
     </html>
