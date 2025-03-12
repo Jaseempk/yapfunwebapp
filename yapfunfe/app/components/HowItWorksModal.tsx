@@ -128,7 +128,7 @@ const HowItWorksModal = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-gradient-to-r from-green-300 via-blue-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm"
+              className="text-white drop-shadow-sm"
             >
               Welcome to YAP - Your Guide to Trading KOL Markets
             </motion.div>
@@ -155,7 +155,7 @@ const HowItWorksModal = () => {
                 >
                   {section.icon}
                 </motion.span>
-                <h3 className="text-xl font-semibold text-primary">
+                <h3 className="text-xl font-semibold text-white">
                   {section.title}
                 </h3>
               </div>

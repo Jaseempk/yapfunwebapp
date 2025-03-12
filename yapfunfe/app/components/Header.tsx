@@ -348,19 +348,23 @@ export default function Header() {
                   </Link>
                 )}
 
-                <Link
-                  href="#how-it-works"
-                  className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50"
-                  onClick={() => {
+                <button
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50 text-left w-full"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     toggleMobileMenu();
-                    const howItWorksButton = document.querySelector('.how-it-works-desktop-button');
-                    if (howItWorksButton) {
-                      (howItWorksButton as HTMLElement).click();
-                    }
+                    // Small delay to ensure the mobile menu is closed before opening the modal
+                    setTimeout(() => {
+                      const howItWorksButton = document.querySelector('.how-it-works-desktop-button button');
+                      if (howItWorksButton) {
+                        (howItWorksButton as HTMLElement).click();
+                      }
+                    }, 100);
                   }}
                 >
                   <span>How It Works</span>
-                </Link>
+                </button>
               </nav>
 
               {/* Mobile Balance and Connect Button */}
