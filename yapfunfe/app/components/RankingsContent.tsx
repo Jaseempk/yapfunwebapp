@@ -14,6 +14,7 @@ import { useKOLData, KOLData } from "../hooks/useKOLData";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useSearch } from "../providers/SearchProvider";
 
 // Loading skeleton component
 function KOLCardSkeleton() {
@@ -45,22 +46,21 @@ function KOLCardSkeleton() {
   );
 }
 
-interface RankingsContentProps {
-  searchQuery?: string;
-}
+interface RankingsContentProps {}
 
-export default function RankingsContent({
-  searchQuery = "",
-}: RankingsContentProps) {
+export default function RankingsContent({}: RankingsContentProps) {
+  const { searchQuery } = useSearch();
   const [timeRange, setTimeRange] = useState("7d");
   const [currentPage, setCurrentPage] = useState(1);
   const { kols, loading, error } = useKOLData({ timeFilter: timeRange });
   const itemsPerPage = 25; // 25 KOLs per page
   const totalPages = 4; // 4 pages total
 
-  const filteredKols = kols.filter((kol) =>
-    kol.handle.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredKols = kols.filter((kol) => {
+    if (!searchQuery) return true;
+    return kol.handle.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           kol.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Get current page items
   const indexOfLastItem = currentPage * itemsPerPage;

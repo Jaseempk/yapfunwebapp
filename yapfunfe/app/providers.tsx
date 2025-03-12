@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { ApolloProvider } from "./providers/ApolloProvider";
 import { Web3Provider } from "./providers/Web3Providers";
 import { UserProvider } from "./providers/UserProvider";
+import { SearchProvider } from "./providers/SearchProvider";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -20,13 +21,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <Web3Provider>
         <UserProvider>
           <ApolloProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="dark"
-              enableSystem={false}
-            >
-              <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>
-            </ThemeProvider>
+            <SearchProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="dark"
+                enableSystem={false}
+              >
+                <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>
+              </ThemeProvider>
+            </SearchProvider>
           </ApolloProvider>
         </UserProvider>
       </Web3Provider>

@@ -117,8 +117,8 @@ const HowItWorksModal = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="font-medium">
-          How It Works
+        <Button variant="ghost" className="font-medium w-full text-left justify-start px-0">
+          <span>How It Works</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-background/95 backdrop-blur-lg">

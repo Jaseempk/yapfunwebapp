@@ -5,7 +5,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisconnect } from "wagmi";
 
-export const ConnectButton = () => {
+export const ConnectButton = ({ className = '' }: { className?: string }) => {
   const [showDisconnect, setShowDisconnect] = useState(false);
   const { disconnect } = useDisconnect();
 
@@ -30,7 +30,7 @@ export const ConnectButton = () => {
           <div className="relative">
             <button
               onClick={handleClick}
-              className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg text-white transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 flex items-center justify-center"
+              className={`bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg text-white transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 flex items-center justify-center ${className}`}
             >
               <span className="text-sm font-medium">
                 {isConnected ? ensName ?? truncatedAddress : "Connect Wallet"}

@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useBalances } from "../hooks/useBalances";
 import DepositModal from "./DepositModal";
 import SearchBar from "./SearchBar";
+import MobileSearchDropdown from "./MobileSearchDropdown";
+import { useSearch } from "../providers/SearchProvider";
 import {
   Home,
   TrendingUp,
@@ -35,7 +37,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
+  const { searchQuery, setSearchQuery } = useSearch();
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Check if we're on mobile based on screen width
@@ -149,8 +151,8 @@ export default function Header() {
                 className="w-full"
               >
                 <SearchBar
-                  value={searchValue}
-                  onChange={setSearchValue}
+                  value={searchQuery}
+                  onChange={setSearchQuery}
                   className="w-full"
                 />
               </motion.div>
@@ -169,44 +171,25 @@ export default function Header() {
           </AnimatePresence>
         </div>
 
-        {/* Search Bar - Mobile (expandable) */}
-        <div
-          className="md:hidden flex items-center mx-4 transition-all duration-300 ease-in-out"
-          style={{
-            width: isMobileMenuOpen ? "0" : isSearchExpanded ? "100%" : "40px",
-          }}
-        >
-          <AnimatePresence mode="wait">
-            {isSearchExpanded ? (
-              <motion.div
-                key="mobile-expanded"
-                initial={{ opacity: 0, scale: 0.9, width: 40 }}
-                animate={{ opacity: 1, scale: 1, width: "100%" }}
-                exit={{ opacity: 0, scale: 0.9, width: 40 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="w-full"
-              >
-                <SearchBar
-                  value={searchValue}
-                  onChange={setSearchValue}
-                  className="w-full"
-                />
-              </motion.div>
-            ) : (
-              <motion.button
-                key="mobile-collapsed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
-                onClick={() => setIsSearchExpanded(true)}
-              >
-                <Search size={18} />
-              </motion.button>
-            )}
-          </AnimatePresence>
+        {/* Search Button - Mobile */}
+        <div className="md:hidden flex items-center mx-4">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSearchExpanded(!isSearchExpanded);
+            }}
+          >
+            <Search size={18} />
+          </motion.button>
         </div>
+        
+        {/* Mobile Search Dropdown */}
+        <MobileSearchDropdown 
+          isOpen={isSearchExpanded} 
+          onClose={() => setIsSearchExpanded(false)} 
+        />
 
         {/* Navigation Links - Desktop */}
         <nav className="hidden md:flex items-center space-x-6">
@@ -262,7 +245,9 @@ export default function Header() {
             </Link>
           )}
 
-          <HowItWorksModal />
+          <div className="how-it-works-desktop-button">
+            <HowItWorksModal />
+          </div>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -363,7 +348,19 @@ export default function Header() {
                   </Link>
                 )}
 
-                <HowItWorksModal />
+                <Link
+                  href="#how-it-works"
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors hover:bg-secondary/50"
+                  onClick={() => {
+                    toggleMobileMenu();
+                    const howItWorksButton = document.querySelector('.how-it-works-desktop-button');
+                    if (howItWorksButton) {
+                      (howItWorksButton as HTMLElement).click();
+                    }
+                  }}
+                >
+                  <span>How It Works</span>
+                </Link>
               </nav>
 
               {/* Mobile Balance and Connect Button */}
@@ -392,7 +389,9 @@ export default function Header() {
                   </div>
                 )}
                 <div className="w-full">
-                  <ConnectButton />
+                  <div className="w-full">
+                    <ConnectButton className="w-full" />
+                  </div>
                 </div>
               </div>
             </div>
