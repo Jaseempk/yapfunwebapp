@@ -1,103 +1,80 @@
-# YapFun - Crypto KOL Mindshare Derivatives Market
+#  YAP - Bet on Your Favorite Crypto Influencers!
 
-YapFun is a decentralized derivatives market focused on mindshares of Key Opinion Leaders (KOLs) in Twitter. The platform allows users to take long or short positions on the future influence and performance of crypto KOLs, creating a unique market-driven approach to valuing online influence.
+## What's YAP All About?
 
-## Features
+Hey there! Welcome to YAP - the fun new way to trade on the Crypto Twitter clout of your favorite KOLs. 
+Think someone's about to blow up on Twitter? Long them up! Think they're all hype? Short them!
 
-- **KOL Markets**: Create and participate in prediction markets for social media influencers
-- **Long/Short Positions**: Take positions based on your predictions of a KOL's future performance
-- **Real-time Data**: Live updates of market prices and positions
-- **In-house Wallet**: Secure escrow system for managing funds within the platform
-- **Analytics Dashboard**: Track market trends and your portfolio performance
-- **Responsive Design**: Seamless experience across desktop and mobile devices
-- **Web3 Integration**: Connect with popular wallets like MetaMask, WalletConnect, and more
+YAP lets you put your money where your mouth is when it comes to predicting which KOLs will rise or fall in the Crypto Twitter game. It's like fantasy sports, but for Crypto Twitter!
 
-## Architecture
+##  How to Play
 
-YapFun is built with a modern, scalable architecture:
+###  Browsing the Markets
 
-### Frontend (`yapfunfe/`)
+1. **Check out the Rankings**: When you first land on YAP, you'll see a list of the top 100 crypto influencers ranked by their current Twitter mindshare.
 
-- **Next.js**: React framework with server-side rendering
-- **TailwindCSS**: Utility-first CSS framework for responsive design
-- **shadcn/ui**: High-quality UI components
-- **Framer Motion**: Smooth animations and transitions
-- **Recharts**: Responsive charting library
-- **wagmi & viem**: Web3 integration libraries
+2. **Search for Your Favorites**: Use the search bar to find specific influencers you're interested in.
 
-### Backend (`yapfunbe/`)
+3. **See What's Hot**: Markets are color-coded - green means people are bullish, red means they're bearish on that influencer.
 
-- **Node.js**: JavaScript runtime
-- **GraphQL API**: Efficient data querying with Apollo Server
-- **WebSocket Subscriptions**: Real-time updates
-- **Redis**: Caching layer for performance
-- **TypeScript**: Type-safe code
+###  Getting Started
 
-### Smart Contracts
+1. **Connect Your Wallet**: Hit the "Connect" button in the top right to link your crypto wallet. 
 
-- **Escrow System** (`yap_escrow/`): Manages user funds securely
-- **Order Book Factory** (`yap_orderbook_factory/`): Creates and manages market order books
-- **Oracle System** (`yap_oracle/`): Provides reliable data feeds for market resolution
+2. **Get Some Funds**: We're running on Base Sepolia testnet right now, so you'll need some test USDC. Grab some from our faucet (check the "How It Works" section for the link).
 
-## Getting Started
+3. **Deposit Funds**: Once you've got test USDC, deposit it into YAP to start trading. 
 
-### Prerequisites
+###  Making Trades
 
-- Node.js (v18+)
-- Yarn or npm
-- Docker (for local development)
-- MetaMask or another Web3 wallet
+1. **Pick an Influencer**: Click on any influencer card to see their market details.
 
-### Frontend Setup
+2. **Choose Your Position**: 
+   - Go LONG if you think their mindshare will increase
+   - Go SHORT if you think their mindshare will decrease
 
-```bash
-cd yapfunfe
-npm install
-npm run dev
-```
+3. **Set Your Amount**: Decide how much you want to bet on your prediction.
 
-### Backend Setup
+4. **Confirm & Watch**: Place your order and watch how it performs over the 72-hour market cycle.
 
-```bash
-cd yapfunbe
-npm install
-npm run dev
-```
+##  Market Cycles
 
-### Smart Contract Development
+Each influencer market runs in 72-hour cycles. At the end of each cycle:
 
-```bash
-cd yap_escrow  # or other contract directory
-yarn install
-yarn compile
-yarn test
-```
+- Market prices are settled based on Kaito mindshare data
+- Winners get paid out in USDC to their in-house balance
+- A new cycle begins automatically
 
-## Market Mechanics
+You can see the current cycle status at the top of the app - it shows how much time is left and when the next settlement happens.
 
-YapFun's prediction markets operate on the following principles:
+##  Pro Tips
 
-1. **Market Creation**: Markets are created for KOLs based on their kaito CT ranking
-2. **Position Taking**: Users can take long positions (betting on increased influence) or short positions (betting on decreased influence)
-3. **Price Discovery**: Market prices are determined by the kaito KOL mindshare
-4. **Settlement**: Markets are settled based on oracle data from kaito
-5. **Profit/Loss**: Users profit when their predictions are correct
+- **Watch for Trends**: Look for influencers whose engagement is trending up but mindshare hasn't caught up yet
+- **Diversify**: Don't put all your funds on one influencer
+- **Check Your Positions**: Visit the Positions page to track all your current bets
+- **Timing Matters**: Markets can swing quickly when big crypto news drops
 
-## Security
+##  Current Status
 
-- **Un-Audited Contracts**: Smart contracts are un-audited
-- **Secure Escrow**: User funds are held in a secure escrow system
-- **Transparent Operations**: All market operations are visible on-chain
-- **Risk Management**: Position limits and circuit breakers prevent market manipulation
+YAP is currently in BETA on Base Sepolia testnet. This means:
 
-## Roadmap
+- You're using test money, not real funds
+- We're still polishing things up
+- You might spot some bugs (let us know if you do!)
+- We're adding new features regularly
 
-- **Q1 2024**: Launch of beta platform with limited KOL markets
-- **Q2 2024**: Mobile app release
+##  Coming Soon
 
-## Contributing
+- Mobile app for trading on the go
+- More detailed analytics on influencer performance
+- Additional market types beyond just influence
+- Mainnet launch with real trading
 
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information.
+## 🤝 Join the Community
+
+We're building YAP for crypto enthusiasts like you! Jump into our Discord to share feedback, report bugs, or just chat about which influencers are about to moon or crash.
+
+Happy trading! 🎯
 
 ## 📄 License
 
