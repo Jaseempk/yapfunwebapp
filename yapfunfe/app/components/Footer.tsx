@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Twitter } from "lucide-react";
+import { Twitter, Github } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -34,6 +34,15 @@ export default function Footer() {
               >
                 <Twitter className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">@meesaj__</span>
+              </Link>
+              <Link 
+                href="https://github.com/Jaseempk/yapfunwebapp" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <Github className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">GitHub</span>
               </Link>
             </div>
             <div className="mt-4 text-xs text-muted-foreground">
